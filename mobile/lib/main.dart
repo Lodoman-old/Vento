@@ -95,7 +95,7 @@ class VentoApp extends StatelessWidget {
             if (args is Event) {
               return MaterialPageRoute(builder: (_) => EventDetailScreen(event: args));
             }
-            return MaterialPageRoute(builder: (_) => EventDetailScreen(event: Event(id: args as String), isLoading: true));
+            return MaterialPageRoute(builder: (_) => EventDetailScreen(event: Event(id: args as String, name: '', date: DateTime.now(), status: ''), isLoading: true));
           case '/event/new':
             final event = settings.arguments as Event?;
             return MaterialPageRoute(builder: (_) => EventFormScreen(event: event));
