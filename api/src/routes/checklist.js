@@ -9,7 +9,7 @@ router.use(authenticate);
 // GET /api/checklist?eventId=
 router.get("/", checkEventAccess, async (req, res) => {
   try {
-    const { eventId } = req.query;
+    const eventId = req.query.event_id || req.query.eventId;
     const { rows } = await query(
       "SELECT * FROM checklist_items WHERE event_id = $1 ORDER BY sort_order, created_at",
       [eventId]
@@ -23,7 +23,8 @@ router.get("/", checkEventAccess, async (req, res) => {
 // POST /api/checklist
 router.post("/", authorize("administrador"), async (req, res) => {
   try {
-    const { eventId, title } = req.body;
+    const eventId = req.body.event_id || req.body.eventId;
+    const title = req.body.title;
     const { rows } = await query(
       `INSERT INTO checklist_items (event_id, title, sort_order)
        VALUES ($1, $2, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM checklist_items WHERE event_id = $1))
@@ -40,7 +41,9 @@ router.post("/", authorize("administrador"), async (req, res) => {
 // PATCH /api/checklist/:id
 router.patch("/:id", authorize("administrador"), async (req, res) => {
   try {
-    const { title, isCompleted, sortOrder } = req.body;
+    const title = req.body.title;
+    const isCompleted = req.body.is_completed ?? req.body.isCompleted;
+    const sortOrder = req.body.sort_order ?? req.body.sortOrder;
     const fields = [];
     const values = [];
     let idx = 1;

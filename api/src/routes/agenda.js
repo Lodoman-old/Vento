@@ -13,7 +13,7 @@ router.use(authenticate);
 // GET /api/agenda?eventId=
 router.get("/", checkEventAccess, async (req, res) => {
   try {
-    const { eventId } = req.query;
+    const eventId = req.query.event_id || req.query.eventId;
     const { rows } = await query(
       `SELECT a.*, u.display_name as assigned_name
        FROM agenda_items a
@@ -31,7 +31,13 @@ router.get("/", checkEventAccess, async (req, res) => {
 // POST /api/agenda
 router.post("/", authorize("administrador"), ...agendaRules, async (req, res) => {
   try {
-    const { eventId, title, description, startTime, endTime, assignedTo, category } = req.body;
+    const eventId = req.body.event_id || req.body.eventId;
+    const title = req.body.title;
+    const description = req.body.description || null;
+    const startTime = req.body.start_time ?? req.body.startTime;
+    const endTime = req.body.end_time ?? req.body.endTime;
+    const assignedTo = req.body.assigned_to ?? req.body.assignedTo;
+    const category = req.body.category || null;
     const { rows } = await query(
       `INSERT INTO agenda_items (event_id, title, description, start_time, end_time, assigned_to, category)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
@@ -69,7 +75,8 @@ router.patch("/:id", ...patchAgendaRules, async (req, res) => {
       return res.status(403).json({ error: "No asignado a esta tarea" });
     }
 
-    const { isCompleted, notes } = req.body;
+    const isCompleted = req.body.is_completed ?? req.body.isCompleted;
+    const notes = req.body.notes;
     const { rows } = await query(
       `UPDATE agenda_items SET
         is_completed = COALESCE($1, is_completed),
@@ -129,7 +136,15 @@ router.patch("/:id", ...patchAgendaRules, async (req, res) => {
 // PUT /api/agenda/:id — admin edita
 router.put("/:id", authorize("administrador"), async (req, res) => {
   try {
-    const { title, description, startTime, endTime, assignedTo, category, isCompleted, notes, sortOrder } = req.body;
+    const title = req.body.title;
+    const description = req.body.description || null;
+    const startTime = req.body.start_time ?? req.body.startTime;
+    const endTime = req.body.end_time ?? req.body.endTime;
+    const assignedTo = req.body.assigned_to ?? req.body.assignedTo;
+    const category = req.body.category || null;
+    const isCompleted = req.body.is_completed ?? req.body.isCompleted;
+    const notes = req.body.notes;
+    const sortOrder = req.body.sort_order ?? req.body.sortOrder;
     const { rows: old } = await query("SELECT assigned_to, event_id FROM agenda_items WHERE id = $1", [req.params.id]);
 
     const { rows } = await query(

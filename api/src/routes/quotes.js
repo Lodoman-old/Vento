@@ -11,7 +11,7 @@ router.use(authenticate);
 // GET /api/quotes?eventId=
 router.get("/", checkEventAccess, async (req, res) => {
   try {
-    const { eventId } = req.query;
+    const eventId = req.query.event_id || req.query.eventId;
     const { rows } = await query(
       "SELECT * FROM quotes WHERE event_id = $1 ORDER BY created_at DESC",
       [eventId]
@@ -50,9 +50,17 @@ router.get("/:id", async (req, res) => {
 // POST /api/quotes
 router.post("/", authorize("administrador"), ...quoteRules, async (req, res) => {
   try {
-    const { eventId, clientName, clientPhone, items } = req.body;
+    const eventId = req.body.event_id || req.body.eventId;
+    const clientName = req.body.client_name ?? req.body.clientName;
+    const clientPhone = req.body.client_phone ?? req.body.clientPhone;
+    const items = req.body.items || [];
 
-    const userTotal = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
+    const normalizeItem = (i) => ({
+      itemName: i.item_name || i.itemName,
+      unitPrice: i.unit_price ?? i.unitPrice,
+      quantity: i.quantity,
+    });
+    const userTotal = items.reduce((sum, i) => sum + (i.quantity || 1) * (normalizeItem(i).unitPrice || 0), 0);
 
     // Fetch supplier costs for this event
     const { rows: supplierCosts } = await query(
@@ -72,7 +80,8 @@ router.post("/", authorize("administrador"), ...quoteRules, async (req, res) => 
     );
 
     const quoteId = quote[0].id;
-    for (const item of items) {
+    for (const raw of items) {
+      const item = normalizeItem(raw);
       await query(
         `INSERT INTO quote_items (quote_id, item_name, quantity, unit_price, is_supplier_cost)
          VALUES ($1, $2, $3, $4, $5)`,
@@ -126,7 +135,9 @@ router.patch("/:id/status", authorize("administrador"), async (req, res) => {
 // PUT /api/quotes/:id
 router.put("/:id", authorize("administrador"), ...quoteUpdateRules, async (req, res) => {
   try {
-    const { clientName, clientPhone, items } = req.body;
+    const clientName = req.body.client_name ?? req.body.clientName;
+    const clientPhone = req.body.client_phone ?? req.body.clientPhone;
+    const items = req.body.items || [];
 
     const { rows: existing } = await query("SELECT status, event_id FROM quotes WHERE id = $1", [req.params.id]);
     if (existing.length === 0) return res.status(404).json({ error: "No encontrada" });
@@ -134,7 +145,12 @@ router.put("/:id", authorize("administrador"), ...quoteUpdateRules, async (req, 
 
     const eventId = existing[0].event_id;
 
-    const userTotal = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
+    const normalizeItem = (i) => ({
+      itemName: i.item_name || i.itemName,
+      unitPrice: i.unit_price ?? i.unitPrice,
+      quantity: i.quantity,
+    });
+    const userTotal = items.reduce((sum, i) => sum + (i.quantity || 1) * (normalizeItem(i).unitPrice || 0), 0);
 
     // Fetch supplier costs for this event
     const { rows: supplierCosts } = await query(
@@ -154,7 +170,8 @@ router.put("/:id", authorize("administrador"), ...quoteUpdateRules, async (req, 
 
     await query("DELETE FROM quote_items WHERE quote_id = $1", [req.params.id]);
 
-    for (const item of items) {
+    for (const raw of items) {
+      const item = normalizeItem(raw);
       await query(
         `INSERT INTO quote_items (quote_id, item_name, quantity, unit_price, is_supplier_cost)
          VALUES ($1, $2, $3, $4, $5)`,

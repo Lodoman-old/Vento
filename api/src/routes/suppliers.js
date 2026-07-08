@@ -11,7 +11,7 @@ router.use(authenticate);
 // GET /api/event-suppliers?eventId=
 router.get("/", checkEventAccess, async (req, res) => {
   try {
-    const { eventId } = req.query;
+    const eventId = req.query.event_id || req.query.eventId;
     const { rows } = await query(
       `SELECT es.*, sc.name, sc.contact_name, sc.phone, sc.email, sc.category, sc.service_description
        FROM event_suppliers es
@@ -29,7 +29,10 @@ router.get("/", checkEventAccess, async (req, res) => {
 // POST /api/event-suppliers — asignar proveedor a evento
 router.post("/", authorize("administrador"), async (req, res) => {
   try {
-    const { eventId, supplierId, budgetAmount, arrivalTime } = req.body;
+    const eventId = req.body.event_id || req.body.eventId;
+    const supplierId = req.body.supplier_id || req.body.supplierId;
+    const budgetAmount = req.body.budget_amount ?? req.body.budgetAmount;
+    const arrivalTime = req.body.arrival_time ?? req.body.arrivalTime;
     const { rows } = await query(
       `INSERT INTO event_suppliers (event_id, supplier_id, budget_amount, arrival_time)
        VALUES ($1, $2, $3, $4) RETURNING *`,
@@ -66,10 +69,10 @@ router.patch("/:id", async (req, res) => {
     let idx = 1;
 
     const map = {
-      contractStatus: "contract_status",
-      budgetAmount: "budget_amount",
-      arrivalTime: "arrival_time",
-      actualArrivalTime: "actual_arrival_time",
+      contract_status: "contract_status", contractStatus: "contract_status",
+      budget_amount: "budget_amount", budgetAmount: "budget_amount",
+      arrival_time: "arrival_time", arrivalTime: "arrival_time",
+      actual_arrival_time: "actual_arrival_time", actualArrivalTime: "actual_arrival_time",
       notes: "notes",
     };
 

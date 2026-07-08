@@ -8,7 +8,7 @@ router.use(authenticate);
 // GET /api/payments?quoteId=
 router.get("/", authorize("administrador"), async (req, res) => {
   try {
-    const { quoteId } = req.query;
+    const quoteId = req.query.quote_id || req.query.quoteId;
     const { rows } = await query(
       "SELECT * FROM payments WHERE quote_id = $1 ORDER BY payment_date DESC",
       [quoteId]
@@ -22,7 +22,12 @@ router.get("/", authorize("administrador"), async (req, res) => {
 // POST /api/payments
 router.post("/", authorize("administrador"), async (req, res) => {
   try {
-    const { quoteId, amount, paymentDate, method, reference, notes } = req.body;
+    const quoteId = req.body.quote_id || req.body.quoteId;
+    const amount = req.body.amount;
+    const paymentDate = req.body.payment_date || req.body.paymentDate;
+    const method = req.body.method || "efectivo";
+    const reference = req.body.reference || null;
+    const notes = req.body.notes || null;
     const { rows } = await query(
       `INSERT INTO payments (quote_id, amount, payment_date, method, reference, notes)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
