@@ -2,6 +2,7 @@ import pg from "pg";
 import { parse } from "pg-connection-string";
 
 const conn = parse(process.env.DATABASE_URL);
+const ssl = conn.ssl || process.env.DATABASE_URL?.includes("sslmode=require");
 
 const pool = new pg.Pool({
   host: conn.host,
@@ -9,6 +10,7 @@ const pool = new pg.Pool({
   database: conn.database,
   user: conn.user,
   password: conn.password,
+  ssl: ssl ? { rejectUnauthorized: false } : false,
   max: 20,
 });
 
