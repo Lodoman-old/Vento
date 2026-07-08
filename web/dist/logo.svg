@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" fill="none">
+  <defs>
+    <linearGradient id="leftStroke" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E3A5F"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="rightStroke" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#67E8F9"/>
+      <stop offset="100%" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+
+  <path d="M50 130 L185 410" stroke="url(#leftStroke)" stroke-width="26" stroke-linecap="round"/>
+  <path d="M330 130 L195 410" stroke="url(#rightStroke)" stroke-width="26" stroke-linecap="round"/>
+
+  <circle cx="330" cy="130" r="26" fill="#22D3EE"/>
+  <circle cx="330" cy="130" r="9" fill="#FFFFFF"/>
+
+  <text x="190" y="435" text-anchor="middle" font-family="'Montserrat', system-ui, sans-serif"
+        font-size="42" font-weight="700" letter-spacing="14" fill="#CBD5E1" opacity="0.9">
+    VENTO
+  </text>
+</svg>
