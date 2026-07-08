@@ -16,20 +16,20 @@ export default function QuotesPage() {
   const [editingQuote, setEditingQuote] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [catFilter, setCatFilter] = useState("");
-  const [form, setForm] = useState({ clientName: "", clientPhone: "", selectedItems: [] });
+  const [form, setForm] = useState({ client_name: "", client_phone: "", selectedItems: [] });
   const [supplierTotalPreview, setSupplierTotalPreview] = useState(0);
   const [expandedQuote, setExpandedQuote] = useState(null);
   const [generatingPdf, setGeneratingPdf] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   useEffect(() => {
-    api.get(`/quotes?eventId=${eventId}`).then(setQuotes).catch(console.error);
+    api.get(`/quotes?event_id=${eventId}`).then(setQuotes).catch(console.error);
     api.get("/catalog").then(setCatalog).catch(console.error);
   }, [eventId]);
 
   useEffect(() => {
     if (showForm || editingQuote) {
-      api.get(`/event-suppliers?eventId=${eventId}`).then((sups) => {
+      api.get(`/event-suppliers?event_id=${eventId}`).then((sups) => {
         const total = sups.reduce((s, sup) => s + Number(sup.budget_amount || 0), 0);
         setSupplierTotalPreview(total);
       }).catch(() => setSupplierTotalPreview(0));
@@ -51,7 +51,7 @@ export default function QuotesPage() {
 
   function addItem(catalogItem) {
     setForm((prev) => {
-      const idx = prev.selectedItems.findIndex((i) => i.itemName === catalogItem.name);
+      const idx = prev.selectedItems.findIndex((i) => i.item_name === catalogItem.name);
       if (idx >= 0) {
         const items = prev.selectedItems.map((i, n) =>
           n === idx ? { ...i, quantity: (Number(i.quantity) || 0) + 1 } : i
@@ -62,7 +62,7 @@ export default function QuotesPage() {
         ...prev,
         selectedItems: [
           ...prev.selectedItems,
-          { itemName: catalogItem.name, unitPrice: Number(catalogItem.unit_price), quantity: 1 },
+          { item_name: catalogItem.name, unit_price: Number(catalogItem.unit_price), quantity: 1 },
         ],
       };
     });
@@ -81,7 +81,7 @@ export default function QuotesPage() {
     setForm({ ...form, selectedItems: form.selectedItems.filter((_, i) => i !== index) });
   }
 
-  const total = form.selectedItems.reduce((sum, i) => sum + (Number(i.quantity) || 0) * i.unitPrice, 0);
+  const total = form.selectedItems.reduce((sum, i) => sum + (Number(i.quantity) || 0) * i.unit_price, 0);
 
   function normalizeItems(items) {
     return items.map((it) => ({
@@ -95,25 +95,25 @@ export default function QuotesPage() {
     try {
       if (editingQuote) {
         await api.put(`/quotes/${editingQuote.id}`, {
-          clientName: form.clientName,
-          clientPhone: form.clientPhone,
+          client_name: form.client_name,
+          client_phone: form.client_phone,
           items: normalizeItems(form.selectedItems),
         });
         toast("Cotización actualizada");
       } else {
         await api.post("/quotes", {
-          eventId,
-          clientName: form.clientName,
-          clientPhone: form.clientPhone,
+          event_id: eventId,
+          client_name: form.client_name,
+          client_phone: form.client_phone,
           items: normalizeItems(form.selectedItems),
         });
         toast("Cotización creada");
       }
       setShowForm(false);
       setEditingQuote(null);
-      setForm({ clientName: "", clientPhone: "", selectedItems: [] });
+      setForm({ client_name: "", client_phone: "", selectedItems: [] });
       setSupplierTotalPreview(0);
-      setQuotes(await api.get(`/quotes?eventId=${eventId}`));
+      setQuotes(await api.get(`/quotes?event_id=${eventId}`));
     } catch (err) { toast(err.message, "error"); }
   }
 
@@ -125,8 +125,8 @@ export default function QuotesPage() {
       selectedItems: (full.items || [])
         .filter((i) => !i.is_supplier_cost)
         .map((i) => ({
-          itemName: i.item_name,
-          unitPrice: Number(i.unit_price),
+          item_name: i.item_name,
+          unit_price: Number(i.unit_price),
           quantity: i.quantity,
         })),
     });
@@ -139,7 +139,7 @@ export default function QuotesPage() {
       await api.delete(`/quotes/${quoteId}`);
       setDeleteConfirm(null);
       toast("Cotización eliminada");
-      setQuotes(await api.get(`/quotes?eventId=${eventId}`));
+      setQuotes(await api.get(`/quotes?event_id=${eventId}`));
     } catch (err) { toast(err.message, "error"); }
   }
 
@@ -147,7 +147,7 @@ export default function QuotesPage() {
     try {
       await api.patch(`/quotes/${quoteId}/status`, { status });
       toast(`Cotización marcada como ${status}`);
-      setQuotes(await api.get(`/quotes?eventId=${eventId}`));
+      setQuotes(await api.get(`/quotes?event_id=${eventId}`));
     } catch (err) { toast(err.message, "error"); }
   }
 
@@ -164,7 +164,7 @@ export default function QuotesPage() {
       try {
         [event, agenda] = await Promise.all([
           api.get(`/events/${full.event_id}`),
-          api.get(`/agenda?eventId=${full.event_id}`),
+          api.get(`/agenda?event_id=${full.event_id}`),
         ]);
       } catch {}
 
@@ -404,7 +404,7 @@ export default function QuotesPage() {
 
       {/* Formulario */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={() => { setShowForm(false); setEditingQuote(null); setForm({ clientName: "", clientPhone: "", selectedItems: [] }); }}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={() => { setShowForm(false); setEditingQuote(null); setForm({ client_name: "", client_phone: "", selectedItems: [] }); }}>
           <form onClick={(e) => e.stopPropagation()} onSubmit={handleCreate}
             className="bg-white rounded-2xl shadow-xl animate-slide-up w-full max-w-4xl max-h-[90vh] flex flex-col">
             <div className="p-5 pb-0">
@@ -412,12 +412,12 @@ export default function QuotesPage() {
               <div className="grid grid-cols-2 gap-3 mt-3">
                 <div>
                   <label className="text-sm text-slate-500 block mb-1">Cliente *</label>
-                  <input value={form.clientName} onChange={(e) => setForm({ ...form, clientName: e.target.value })}
+                  <input value={form.client_name} onChange={(e) => setForm({ ...form, client_name: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" required />
                 </div>
                 <div>
                   <label className="text-sm text-slate-500 block mb-1">WhatsApp</label>
-                  <input value={form.clientPhone} onChange={(e) => setForm({ ...form, clientPhone: e.target.value })}
+                  <input value={form.client_phone} onChange={(e) => setForm({ ...form, client_phone: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" placeholder="521234567890" />
                 </div>
               </div>
@@ -486,14 +486,14 @@ export default function QuotesPage() {
                   {form.selectedItems.map((item, i) => (
                     <div key={i} className="flex items-center gap-3 bg-slate-50 rounded-lg px-3 py-2.5">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{item.itemName}</p>
-                        <p className="text-[11px] text-slate-400">${Number(item.unitPrice).toLocaleString()} c/u</p>
+                        <p className="text-sm font-medium truncate">{item.item_name}</p>
+                        <p className="text-[11px] text-slate-400">${Number(item.unit_price).toLocaleString()} c/u</p>
                       </div>
                       <input type="number" value={item.quantity} min="0" placeholder="0"
                         onChange={(e) => updateItem(i, "quantity", e.target.value === "" ? "" : Number(e.target.value))}
                         className="w-20 px-2 py-1.5 border border-slate-200 rounded text-sm text-center" />
                       <span className="text-sm w-24 text-right font-semibold">
-                        ${((Number(item.quantity) || 0) * item.unitPrice).toLocaleString()}
+                        ${((Number(item.quantity) || 0) * item.unit_price).toLocaleString()}
                       </span>
                       <button type="button" onClick={() => removeItem(i)}
                         className="text-red-400 hover:text-red-600 text-sm p-1">✕</button>
@@ -508,7 +508,7 @@ export default function QuotesPage() {
                 className="px-4 py-2 bg-vento-cyan text-vento-navy rounded-lg text-sm font-medium hover:bg-cyan-400 transition disabled:opacity-50">
                 Guardar cotización
               </button>
-              <button type="button" onClick={() => { setShowForm(false); setEditingQuote(null); setForm({ clientName: "", clientPhone: "", selectedItems: [] }); }}
+              <button type="button" onClick={() => { setShowForm(false); setEditingQuote(null); setForm({ client_name: "", client_phone: "", selectedItems: [] }); }}
                 className="px-4 py-2 border border-slate-200 rounded-lg text-sm hover:bg-slate-50 transition">
                 Cancelar
               </button>
@@ -628,7 +628,7 @@ function QuoteDetail({ quoteId }) {
   const toast = useToast();
   useEffect(() => {
     api.get(`/quotes/${quoteId}`).then(setData).catch(console.error);
-    api.get(`/payments?quoteId=${quoteId}`).then(setPayments).catch(console.error);
+    api.get(`/payments?quote_id=${quoteId}`).then(setPayments).catch(console.error);
   }, [quoteId]);
 
   if (!data) return <p className="text-xs text-slate-400">Cargando...</p>;
@@ -639,7 +639,7 @@ function QuoteDetail({ quoteId }) {
   async function addPayment(e) {
     e.preventDefault();
     try {
-      const res = await api.post("/payments", { quoteId, amount: Number(payForm.amount), method: payForm.method, reference: payForm.reference, notes: payForm.notes });
+      const res = await api.post("/payments", { quote_id: quoteId, amount: Number(payForm.amount), method: payForm.method, reference: payForm.reference, notes: payForm.notes });
       setPayments([res, ...payments]);
       setShowPaymentForm(false);
       setPayForm({ amount: "", method: "efectivo", reference: "", notes: "" });

@@ -28,7 +28,7 @@ export default function EventSuppliersPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   async function loadSuppliers() {
-    try { setSuppliers(await api.get(`/event-suppliers?eventId=${id}`)); } catch (err) { console.error(err); }
+    try { setSuppliers(await api.get(`/event-suppliers?event_id=${id}`)); } catch (err) { console.error(err); }
   }
 
   async function loadCatalog() {
@@ -52,9 +52,9 @@ export default function EventSuppliersPage() {
     e.preventDefault();
     if (!selectedSupplier) return;
     try {
-      const payload = { eventId: id, supplierId: selectedSupplier };
-      if (assignBudget) payload.budgetAmount = Number(assignBudget);
-      if (assignArrival) payload.arrivalTime = assignArrival;
+      const payload = { event_id: id, supplier_id: selectedSupplier };
+      if (assignBudget) payload.budget_amount = Number(assignBudget);
+      if (assignArrival) payload.arrival_time = assignArrival;
       await api.post("/event-suppliers", payload);
       toast("Proveedor asignado al evento");
       setShowAssign(false);
@@ -76,7 +76,7 @@ export default function EventSuppliersPage() {
   }
 
   async function reportArrival(supId) {
-    await updateSupplier(supId, { actualArrivalTime: new Date().toISOString() });
+    await updateSupplier(supId, { actual_arrival_time: new Date().toISOString() });
   }
 
   async function removeSupplier(supId) {
@@ -196,13 +196,13 @@ export default function EventSuppliersPage() {
                 {user?.role === "administrador" ? (
                   <>
                     {s.contract_status === "pendiente" && (
-                      <button onClick={() => updateSupplier(s.id, { contractStatus: "contactado" })}
+                      <button onClick={() => updateSupplier(s.id, { contract_status: "contactado" })}
                         className="text-[10px] px-2 py-1 bg-yellow-500 text-white rounded-full hover:bg-yellow-600 transition">
                         Contactado
                       </button>
                     )}
                     {s.contract_status === "contactado" && (
-                      <button onClick={() => updateSupplier(s.id, { contractStatus: "contratado" })}
+                      <button onClick={() => updateSupplier(s.id, { contract_status: "contratado" })}
                         className="text-[10px] px-2 py-1 bg-green-500 text-white rounded-full hover:bg-green-600 transition">
                         Contratar
                       </button>

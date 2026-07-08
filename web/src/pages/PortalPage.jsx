@@ -66,7 +66,7 @@ export default function PortalPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold">Mi evento</h1>
-          <p className="text-sm text-slate-500">Bienvenido, {user?.displayName}</p>
+          <p className="text-sm text-slate-500">Bienvenido, {user?.display_name || user?.displayName}</p>
         </div>
         <button onClick={() => { logout(); navigate("/login"); }}
           className="text-xs px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition">

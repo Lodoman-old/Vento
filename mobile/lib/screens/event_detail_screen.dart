@@ -41,9 +41,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
     try {
       setState(() => _loading = true);
       final results = await Future.wait([
-        ApiService().get('/agenda?eventId=$id'),
-        ApiService().get('/event-suppliers?eventId=$id'),
-        ApiService().get('/quotes?eventId=$id'),
+        ApiService().get('/agenda?event_id=$id'),
+        ApiService().get('/event-suppliers?event_id=$id'),
+        ApiService().get('/quotes?event_id=$id'),
       ]);
       _agenda = (results[0] as List).map((e) => AgendaItem.fromJson(e)).toList();
       _suppliers = (results[1] as List).map((e) => Supplier.fromJson(e)).toList();
@@ -301,8 +301,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
       );
       if (selected == null) return;
       await ApiService().post('/event-suppliers', body: {
-        'eventId': widget.event.id,
-        'supplierId': selected['id'],
+        'event_id': widget.event.id,
+        'supplier_id': selected['id'],
       });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Proveedor asignado')));
       _load();

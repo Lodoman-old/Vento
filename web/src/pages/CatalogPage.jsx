@@ -7,7 +7,7 @@ function imgSrc(url) {
   return url?.startsWith("http") ? url : url || "/placeholder.svg";
 }
 
-const emptyForm = { name: "", category: "", unitPrice: "",   unitType: "pieza", description: "", stockAvailable: "", imageUrl: "" };
+const emptyForm = { name: "", category: "", unit_price: "",   unit_type: "pieza", description: "", stock_available: "", image_url: "" };
 const unitTypes = ["pieza", "persona", "metro", "juego", "kg", "litro"];
 
 export default function CatalogPage() {
@@ -53,11 +53,11 @@ export default function CatalogPage() {
     setForm({
       name: item.name,
       category: item.category,
-      unitPrice: item.unit_price?.toString() || "",
-      unitType: item.unit_type || "unit",
+      unit_price: item.unit_price?.toString() || "",
+      unit_type: item.unit_type || "pieza",
       description: item.description || "",
-      stockAvailable: item.stock_available?.toString() || "",
-      imageUrl: item.image_url || "",
+      stock_available: item.stock_available?.toString() || "",
+      image_url: item.image_url || "",
     });
     setShowForm(true);
   }
@@ -68,7 +68,7 @@ export default function CatalogPage() {
       const fd = new FormData();
       fd.append("file", file);
       const { url } = await api.post("/upload", fd, true);
-      setForm({ ...form, imageUrl: url });
+      setForm({ ...form, image_url: url });
     } catch (err) {
       console.error("Upload error:", err);
     } finally {
@@ -80,10 +80,10 @@ export default function CatalogPage() {
     e.preventDefault();
     try {
       const payload = {
-        name: form.name, category: form.category, unitType: form.unitType,
-        unitPrice: Number(form.unitPrice), description: form.description || null,
-        stockAvailable: form.stockAvailable ? Number(form.stockAvailable) : 0,
-        imageUrl: form.imageUrl || null,
+        name: form.name, category: form.category, unit_type: form.unit_type,
+        unit_price: Number(form.unit_price), description: form.description || null,
+        stock_available: form.stock_available ? Number(form.stock_available) : 0,
+        image_url: form.image_url || null,
       };
       if (editing) {
         await api.put(`/catalog/${editing}`, payload);
@@ -101,11 +101,11 @@ export default function CatalogPage() {
     try {
       await api.put(`/catalog/${item.id}`, {
         name: item.name, category: item.category,
-        unitPrice: Number(item.unit_price), unitType: item.unit_type,
+        unit_price: Number(item.unit_price), unit_type: item.unit_type,
         description: item.description || null,
-        stockAvailable: item.stock_available || 0,
-        imageUrl: item.image_url || null,
-        isActive: !item.is_active,
+        stock_available: item.stock_available || 0,
+        image_url: item.image_url || null,
+        is_active: !item.is_active,
       });
       toast(item.is_active ? "Producto desactivado" : "Producto activado");
       load();
@@ -171,7 +171,7 @@ export default function CatalogPage() {
               </div>
               <div>
                 <label className="text-sm text-slate-500 block mb-1">Tipo</label>
-                <select value={form.unitType} onChange={(e) => setForm({ ...form, unitType: e.target.value })}
+                <select value={form.unit_type} onChange={(e) => setForm({ ...form, unit_type: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan bg-white">
                   {unitTypes.map((u) => <option key={u} value={u}>{u}</option>)}
                 </select>
@@ -180,12 +180,12 @@ export default function CatalogPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-sm text-slate-500 block mb-1">Precio unitario *</label>
-                <input type="number" step="0.01" value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
+                <input type="number" step="0.01" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" required />
               </div>
               <div>
                 <label className="text-sm text-slate-500 block mb-1">Stock</label>
-                <input type="number" value={form.stockAvailable} onChange={(e) => setForm({ ...form, stockAvailable: e.target.value })}
+                <input type="number" value={form.stock_available} onChange={(e) => setForm({ ...form, stock_available: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" />
               </div>
             </div>
@@ -197,11 +197,11 @@ export default function CatalogPage() {
             <div>
               <label className="text-sm text-slate-500 block mb-1">Foto del producto</label>
               <div className="flex items-center gap-3">
-                {form.imageUrl ? (
+                {form.image_url ? (
                   <div className="relative">
-                    <img src={imgSrc(form.imageUrl)} alt="preview" className="w-24 h-24 object-cover rounded-lg border"
+                    <img src={imgSrc(form.image_url)} alt="preview" className="w-24 h-24 object-cover rounded-lg border"
                       onError={(e) => { e.target.style.display = "none"; }} />
-                    <button type="button" onClick={() => setForm({ ...form, imageUrl: "" })}
+                    <button type="button" onClick={() => setForm({ ...form, image_url: "" })}
                       className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center hover:bg-red-600">✕</button>
                   </div>
                 ) : (

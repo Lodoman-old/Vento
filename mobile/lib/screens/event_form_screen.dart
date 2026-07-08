@@ -77,7 +77,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
         'date': dateStr,
         'venue': _venueCtrl.text.trim().isEmpty ? null : _venueCtrl.text.trim(),
         'status': _status,
-        'budget': _budgetCtrl.text.trim().isEmpty ? null : double.parse(_budgetCtrl.text.trim()),
+        'total_budget': _budgetCtrl.text.trim().isEmpty ? null : double.parse(_budgetCtrl.text.trim()),
         'description': _descriptionCtrl.text.trim().isEmpty ? null : _descriptionCtrl.text.trim(),
       };
       if (widget.event != null) {

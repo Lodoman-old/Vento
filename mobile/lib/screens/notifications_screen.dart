@@ -22,7 +22,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _load() async {
     try {
       String url = '/notifications?limit=100';
-      if (_eventFilter != null) url += '&eventId=$_eventFilter';
+      if (_eventFilter != null) url += '&event_id=$_eventFilter';
       final data = await ApiService().get(url);
       _notifs = (data['data'] ?? data as List).cast<Map>();
     } catch (_) {}

@@ -24,18 +24,18 @@ export default function EventDetailPage() {
   const [newCheckItem, setNewCheckItem] = useState("");
   const [generatingReport, setGeneratingReport] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
-  const [editForm, setEditForm] = useState({ name: "", date: "", venue: "", description: "", totalBudget: "" });
+  const [editForm, setEditForm] = useState({ name: "", date: "", venue: "", description: "", total_budget: "" });
   const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => {
     async function load() {
       const [evt, ag, sup, quo, ca, cl] = await Promise.allSettled([
         api.get(`/events/${id}`),
-        api.get(`/agenda?eventId=${id}`),
-        api.get(`/event-suppliers?eventId=${id}`),
-        api.get(`/quotes?eventId=${id}`),
+        api.get(`/agenda?event_id=${id}`),
+        api.get(`/event-suppliers?event_id=${id}`),
+        api.get(`/quotes?event_id=${id}`),
         user?.role === "administrador" ? api.get(`/events/${id}/client-access`) : Promise.resolve(null),
-        api.get(`/checklist?eventId=${id}`),
+        api.get(`/checklist?event_id=${id}`),
       ]);
       if (evt.status === "fulfilled") setEvent(evt.value);
       else setErrors((e) => ({ ...e, event: evt.reason?.message }));
@@ -88,14 +88,14 @@ export default function EventDetailPage() {
     try {
       const [company, allQuotes, allPayments] = await Promise.all([
         api.get("/settings"),
-        api.get(`/quotes?eventId=${id}`),
-        api.get(`/payments?eventId=${id}`).catch(() => []),
+        api.get(`/quotes?event_id=${id}`),
+        api.get(`/payments?event_id=${id}`).catch(() => []),
       ]);
 
       let allPaymentsResolved = [];
       if (allQuotes.length > 0) {
         const paymentPromises = allQuotes.map((q) =>
-          api.get(`/payments?quoteId=${q.id}`).catch(() => [])
+          api.get(`/payments?quote_id=${q.id}`).catch(() => [])
         );
         const paymentArrays = await Promise.all(paymentPromises);
         allPaymentsResolved = paymentArrays.flat();
@@ -193,7 +193,7 @@ export default function EventDetailPage() {
                     date: event.date?.slice(0, 16) || "",
                     venue: event.venue || "",
                     description: event.description || "",
-                    totalBudget: event.total_budget?.toString() || "",
+                    total_budget: event.total_budget?.toString() || "",
                   });
                   setShowEditForm(true);
                 }}
@@ -356,7 +356,7 @@ export default function EventDetailPage() {
             <p className="text-sm text-slate-500">{checklist.filter((c) => c.is_completed).length}/{checklist.length} completados</p>
           </div>
           {user?.role === "administrador" && (
-            <form onSubmit={async (e) => { e.preventDefault(); if (!newCheckItem.trim()) return; try { const res = await api.post("/checklist", { eventId: id, title: newCheckItem }); setChecklist([...checklist, res]); setNewCheckItem(""); } catch {} }}
+            <form onSubmit={async (e) => { e.preventDefault(); if (!newCheckItem.trim()) return; try { const res = await api.post("/checklist", { event_id: id, title: newCheckItem }); setChecklist([...checklist, res]); setNewCheckItem(""); } catch {} }}
               className="flex gap-2 mb-4">
               <input value={newCheckItem} onChange={(e) => setNewCheckItem(e.target.value)}
                 className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" placeholder="Agregar tarea..." />
@@ -432,7 +432,7 @@ export default function EventDetailPage() {
             e.preventDefault();
             setEditSaving(true);
             try {
-              const payload = { ...editForm, totalBudget: editForm.totalBudget ? Number(editForm.totalBudget) : 0 };
+              const payload = { ...editForm, total_budget: editForm.total_budget ? Number(editForm.total_budget) : 0 };
               const updated = await api.put(`/events/${id}`, payload);
               setEvent(updated);
               setShowEditForm(false);
@@ -458,7 +458,7 @@ export default function EventDetailPage() {
               </div>
               <div>
                 <label className="text-sm text-slate-500 block mb-1">Presupuesto</label>
-                <input type="number" value={editForm.totalBudget} onChange={(e) => setEditForm({ ...editForm, totalBudget: e.target.value })}
+                <input type="number" value={editForm.total_budget} onChange={(e) => setEditForm({ ...editForm, total_budget: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" placeholder="0" />
               </div>
             </div>

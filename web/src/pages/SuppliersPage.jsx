@@ -4,7 +4,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../components/Toast";
 import ConfirmModal from "../components/ConfirmModal";
 
-const emptyForm = { name: "", contactName: "", phone: "", email: "", category: "otro", serviceDescription: "" };
+const emptyForm = { name: "", contact_name: "", phone: "", email: "", category: "otro", service_description: "" };
 const categories = ["catering", "decoracion", "musica", "fotografia", "transporte", "otro"];
 
 export default function SuppliersPage() {
@@ -26,7 +26,7 @@ export default function SuppliersPage() {
 
   function openEdit(s) {
     setEditing(s.id);
-    setForm({ name: s.name, contactName: s.contact_name || "", phone: s.phone || "", email: s.email || "", category: s.category, serviceDescription: s.service_description || "" });
+    setForm({ name: s.name, contact_name: s.contact_name || "", phone: s.phone || "", email: s.email || "", category: s.category, service_description: s.service_description || "" });
     setShowForm(true);
   }
 
@@ -107,14 +107,14 @@ export default function SuppliersPage() {
               </div>
               <div>
                 <label className="text-sm text-slate-500 block mb-1">Contacto</label>
-                <input value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })}
+                <input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })}
                   placeholder="Nombre de contacto"
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" />
               </div>
             </div>
             <div>
               <label className="text-sm text-slate-500 block mb-1">Descripción del servicio</label>
-              <textarea value={form.serviceDescription} onChange={(e) => setForm({ ...form, serviceDescription: e.target.value })}
+              <textarea value={form.service_description} onChange={(e) => setForm({ ...form, service_description: e.target.value })}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" rows="2" />
             </div>
             <div className="flex gap-2 pt-2">

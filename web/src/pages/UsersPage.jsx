@@ -14,7 +14,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [form, setForm] = useState({ displayName: "", email: "", password: "", phone: "", role: "staff" });
+  const [form, setForm] = useState({ display_name: "", email: "", password: "", phone: "", role: "staff" });
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const loadUsers = useCallback(async () => {
@@ -30,13 +30,13 @@ export default function UsersPage() {
   }, [loadUsers]);
 
   function resetForm() {
-    setForm({ displayName: "", email: "", password: "", phone: "", role: "staff" });
+    setForm({ display_name: "", email: "", password: "", phone: "", role: "staff" });
     setEditingUser(null);
   }
 
   function startEdit(user) {
     setForm({
-      displayName: user.display_name || "",
+      display_name: user.display_name || "",
       email: user.email || "",
       password: "",
       phone: user.phone || "",
@@ -93,7 +93,7 @@ export default function UsersPage() {
 
             <div>
               <label className="text-sm text-slate-500 block mb-1">Nombre *</label>
-              <input value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })}
+              <input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" required />
             </div>
             <div>

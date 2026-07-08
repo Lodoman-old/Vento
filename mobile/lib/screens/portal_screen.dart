@@ -36,9 +36,9 @@ class _PortalScreenState extends State<PortalScreen> {
       final evt = Event.fromJson(events[0]);
       _event = evt;
       final results = await Future.wait([
-        ApiService().get('/agenda?eventId=${evt.id}'),
-        ApiService().get('/event-suppliers?eventId=${evt.id}'),
-        ApiService().get('/quotes?eventId=${evt.id}'),
+        ApiService().get('/agenda?event_id=${evt.id}'),
+        ApiService().get('/event-suppliers?event_id=${evt.id}'),
+        ApiService().get('/quotes?event_id=${evt.id}'),
       ]);
       _agenda = (results[0] as List).map((e) => AgendaItem.fromJson(e)).toList();
       _suppliers = (results[1] as List).map((e) => Supplier.fromJson(e)).toList();
