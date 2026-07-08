@@ -127,8 +127,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
           ? ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: imageUrl.endsWith('.svg')
-                ? SvgPicture.network('${ApiService().baseUrl}$imageUrl', width: 44, height: 44, fit: BoxFit.cover, placeholderBuilder: (_) => const Icon(Icons.image, color: Colors.grey))
-                : Image.network('${ApiService().baseUrl}$imageUrl', width: 44, height: 44, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image, color: Colors.grey)))
+                ? SvgPicture.network(ApiService().imageUrl(imageUrl), width: 44, height: 44, fit: BoxFit.cover, placeholderBuilder: (_) => const Icon(Icons.image, color: Colors.grey))
+                : Image.network(ApiService().imageUrl(imageUrl), width: 44, height: 44, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image, color: Colors.grey)))
           : CircleAvatar(backgroundColor: Colors.grey.shade100, child: Icon(Icons.inventory, color: Colors.grey.shade600)),
         title: Text(item['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: active ? null : Colors.grey)),
         subtitle: Text('${item['unit_type'] ?? ''}${item['unit_price'] != null ? ' — \$${item['unit_price']}' : ''}', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),

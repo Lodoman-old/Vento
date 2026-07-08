@@ -96,6 +96,20 @@ router.patch("/:id", async (req, res) => {
     const { rows: catalog } = await query("SELECT * FROM supplier_catalog WHERE id = $1", [es.supplier_id]);
     const result = { ...es, ...catalog[0] };
 
+    // Auto-generar agenda item cuando el proveedor reporta llegada
+    if (es.actual_arrival_time && !req.body._agendaCreated) {
+      const name = catalog[0]?.name || "Proveedor";
+      const arrivalDate = new Date(es.actual_arrival_time);
+      const time = `${arrivalDate.getHours().toString().padStart(2, '0')}:${arrivalDate.getMinutes().toString().padStart(2, '0')}`;
+      await query(
+        `INSERT INTO agenda_items (event_id, title, description, start_time, is_completed)
+         VALUES ($1, $2, $3, $4, true)`,
+        [es.event_id, `🛻 Llegada: ${name}`, `El proveedor "${name}" reportó llegada a las ${time}`, es.actual_arrival_time]
+      );
+      // Marcar para no duplicar en caso de que el frontend re-envíe
+      req.body._agendaCreated = true;
+    }
+
     getIO().to(`event:${es.event_id}`).emit("supplier:updated", result);
     await publishToRedis("supplier_channel", { event_id: es.event_id, supplier_id: es.supplier_id, action: "UPDATE" });
 

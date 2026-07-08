@@ -345,8 +345,8 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> with SingleTickerProv
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(6),
                           child: imageUrl.endsWith('.svg')
-                            ? SvgPicture.network('${ApiService().baseUrl}$imageUrl', width: 48, height: 48, fit: BoxFit.cover)
-                            : Image.network('${ApiService().baseUrl}$imageUrl', width: 48, height: 48, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image, color: Colors.grey)),
+                            ? SvgPicture.network(ApiService().imageUrl(imageUrl), width: 48, height: 48, fit: BoxFit.cover)
+                            : Image.network(ApiService().imageUrl(imageUrl), width: 48, height: 48, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image, color: Colors.grey)),
                         )
                       : CircleAvatar(backgroundColor: Colors.grey.shade100, radius: 24, child: Icon(Icons.inventory, color: Colors.grey.shade500)),
                     title: Text(item['name'] ?? '', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),

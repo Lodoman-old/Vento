@@ -36,7 +36,11 @@ router.get("/:id", authorize("administrador"), async (req, res) => {
 // POST /api/users
 router.post("/", authorize("administrador"), async (req, res) => {
   try {
-    const { displayName, email, password, phone, role } = req.body;
+    const displayName = req.body.display_name ?? req.body.displayName;
+    const email = req.body.email;
+    const password = req.body.password;
+    const phone = req.body.phone;
+    const role = req.body.role;
     const hash = await bcrypt.hash(password, 10);
     const { rows } = await query(
       `INSERT INTO users (display_name, email, password_hash, phone, role)
@@ -53,7 +57,12 @@ router.post("/", authorize("administrador"), async (req, res) => {
 // PUT /api/users/:id
 router.put("/:id", authorize("administrador"), async (req, res) => {
   try {
-    const { displayName, email, password, phone, role, isActive } = req.body;
+    const displayName = req.body.display_name ?? req.body.displayName;
+    const email = req.body.email;
+    const password = req.body.password;
+    const phone = req.body.phone;
+    const role = req.body.role;
+    const isActive = req.body.is_active ?? req.body.isActive;
 
     if (email) {
       const { rows: dup } = await query("SELECT id FROM users WHERE email = $1 AND id != $2", [email, req.params.id]);

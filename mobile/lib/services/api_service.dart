@@ -39,6 +39,13 @@ class ApiService {
   bool get hasBaseUrl => _baseUrl.isNotEmpty;
   bool get hasToken => _token != null && _token!.isNotEmpty;
 
+  /// Resuelve URLs de imágenes: si ya es absoluta (http) la usa directo, si no, prepende el baseUrl
+  String imageUrl(String? url) {
+    if (url == null || url.isEmpty) return '';
+    if (url.startsWith('http')) return url;
+    return '$_baseUrl$url';
+  }
+
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
     if (_token != null) 'Authorization': 'Bearer $_token',

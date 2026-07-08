@@ -66,7 +66,10 @@ router.post("/login", loginLimiter, async (req, res) => {
 
 router.post("/register", authenticate, authorize("administrador"), ...authRules, async (req, res) => {
   try {
-    const { displayName, email, password, role } = req.body;
+    const displayName = req.body.display_name ?? req.body.displayName;
+    const email = req.body.email;
+    const password = req.body.password;
+    const role = req.body.role;
     const hash = await bcrypt.hash(password, 10);
     const { rows } = await query(
       `INSERT INTO users (display_name, email, password_hash, role)

@@ -129,7 +129,7 @@ class _CatalogFormScreenState extends State<CatalogFormScreen> {
               child: _selectedImage != null
                 ? ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(_selectedImage!, width: double.infinity, height: 160, fit: BoxFit.cover))
                 : _imageUrl != null
-                  ? ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network('${ApiService().baseUrl}$_imageUrl', width: double.infinity, height: 160, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _imagePlaceholder()))
+                  ? ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(ApiService().imageUrl(_imageUrl), width: double.infinity, height: 160, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _imagePlaceholder()))
                   : _imagePlaceholder(),
             ),
           ),

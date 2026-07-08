@@ -399,12 +399,56 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
                   child: Text(nextAction[s.contractStatus]!, style: const TextStyle(fontSize: 12)),
                 )),
               if (s.arrivalTime != null)
-                Text('Llegó: ${s.arrivalTime}', style: TextStyle(fontSize: 11, color: Colors.green.shade600, fontWeight: FontWeight.w500)),
+                Text('Llegada pactada: ${s.arrivalTime}', style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+              if (s.budgetAmount > 0)
+                Text('Presupuesto: \$${NumberFormat('#,##0.00', 'es').format(s.budgetAmount)}', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+              if (widget.event.status != 'completado')
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  TextButton.icon(
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: const Text('Editar', style: TextStyle(fontSize: 12)),
+                    onPressed: () => _editSupplier(s),
+                  ),
+                ]),
             ]),
           ),
         );
       },
     );
+  }
+
+  Future<void> _editSupplier(Supplier s) async {
+    final budgetCtrl = TextEditingController(text: s.budgetAmount > 0 ? s.budgetAmount.toString() : '');
+    final arrivalCtrl = TextEditingController(text: s.arrivalTime ?? '');
+    await showDialog(context: context, builder: (ctx) => AlertDialog(
+      title: Text('Editar: ${s.name}'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: budgetCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Presupuesto', border: OutlineInputBorder())),
+        const SizedBox(height: 8),
+        TextField(controller: arrivalCtrl, decoration: const InputDecoration(labelText: 'Llegada pactada (YYYY-MM-DD HH:MM)', border: OutlineInputBorder())),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+        ElevatedButton(onPressed: () async {
+          Navigator.pop(ctx);
+          final data = <String, dynamic>{};
+          if (budgetCtrl.text.isNotEmpty) data['budget_amount'] = double.tryParse(budgetCtrl.text) ?? 0;
+          if (arrivalCtrl.text.isNotEmpty) data['arrival_time'] = arrivalCtrl.text;
+          if (data.isEmpty) return;
+          await _updateSupplierData(s.id, data);
+        }, child: const Text('Guardar')),
+      ],
+    ));
+  }
+
+  Future<void> _updateSupplierData(String supId, Map<String, dynamic> data) async {
+    try {
+      await ApiService().patch('/event-suppliers/$supId', body: data);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Proveedor actualizado')));
+      _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')));
+    }
   }
 
   Widget _quotesTab() {

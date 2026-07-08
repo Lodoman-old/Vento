@@ -26,6 +26,9 @@ export default function EventSuppliersPage() {
   const [assignBudget, setAssignBudget] = useState("");
   const [assignArrival, setAssignArrival] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
+  const [editBudget, setEditBudget] = useState("");
+  const [editArrival, setEditArrival] = useState("");
 
   async function loadSuppliers() {
     try { setSuppliers(await api.get(`/event-suppliers?event_id=${id}`)); } catch (err) { console.error(err); }
@@ -77,6 +80,22 @@ export default function EventSuppliersPage() {
 
   async function reportArrival(supId) {
     await updateSupplier(supId, { actual_arrival_time: new Date().toISOString() });
+  }
+
+  function openEdit(s) {
+    setEditTarget(s);
+    setEditBudget(s.budget_amount?.toString() || "");
+    setEditArrival(s.arrival_time || "");
+  }
+
+  async function handleEditSave(e) {
+    e.preventDefault();
+    if (!editTarget) return;
+    const data = {};
+    if (editBudget) data.budget_amount = Number(editBudget);
+    if (editArrival) data.arrival_time = editArrival;
+    await updateSupplier(editTarget.id, data);
+    setEditTarget(null);
   }
 
   async function removeSupplier(supId) {
@@ -213,8 +232,13 @@ export default function EventSuppliersPage() {
                         Llegó
                       </button>
                     )}
+                    <button onClick={() => openEdit(s)}
+                      className="text-xs p-1 text-slate-400 hover:text-vento-cyan opacity-0 group-hover:opacity-100 transition"
+                      title="Editar presupuesto/llegada">
+                      ✎
+                    </button>
                     <button onClick={() => setDeleteTarget(s.id)}
-                      className="text-xs p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition ml-2"
+                      className="text-xs p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
                       title="Retirar del evento">
                       ✕
                     </button>
@@ -242,6 +266,36 @@ export default function EventSuppliersPage() {
               Asignar proveedor
             </button>
           )}
+        </div>
+      )}
+
+      {/* Modal editar proveedor */}
+      {editTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in">
+          <form onSubmit={handleEditSave} onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl animate-slide-up space-y-4">
+            <h2 className="text-lg font-bold">Editar: {editTarget.name}</h2>
+            <div>
+              <label className="text-sm text-slate-500 block mb-1">Presupuesto</label>
+              <input type="number" value={editBudget} onChange={(e) => setEditBudget(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" />
+            </div>
+            <div>
+              <label className="text-sm text-slate-500 block mb-1">Llegada pactada</label>
+              <input type="datetime-local" value={editArrival} onChange={(e) => setEditArrival(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button type="submit"
+                className="px-4 py-2 bg-vento-cyan text-vento-navy rounded-lg text-sm font-medium hover:bg-cyan-400 transition">
+                Guardar
+              </button>
+              <button type="button" onClick={() => setEditTarget(null)}
+                className="px-4 py-2 border border-slate-200 rounded-lg text-sm hover:bg-slate-50 transition">
+                Cancelar
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

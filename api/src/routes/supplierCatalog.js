@@ -16,7 +16,12 @@ router.get("/", async (req, res) => {
 
 router.post("/", authorize("administrador"), async (req, res) => {
   try {
-    const { name, contactName, phone, email, category, serviceDescription } = req.body;
+    const name = req.body.name;
+    const contactName = req.body.contact_name ?? req.body.contactName;
+    const phone = req.body.phone;
+    const email = req.body.email;
+    const category = req.body.category;
+    const serviceDescription = req.body.service_description ?? req.body.serviceDescription;
     const { rows } = await query(
       `INSERT INTO supplier_catalog (name, contact_name, phone, email, category, service_description)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
@@ -30,7 +35,12 @@ router.post("/", authorize("administrador"), async (req, res) => {
 
 router.put("/:id", authorize("administrador"), async (req, res) => {
   try {
-    const { name, contactName, phone, email, category, serviceDescription } = req.body;
+    const name = req.body.name;
+    const contactName = req.body.contact_name ?? req.body.contactName;
+    const phone = req.body.phone;
+    const email = req.body.email;
+    const category = req.body.category;
+    const serviceDescription = req.body.service_description ?? req.body.serviceDescription;
     const { rows } = await query(
       `UPDATE supplier_catalog SET name=$1, contact_name=$2, phone=$3, email=$4, category=$5, service_description=$6, updated_at=NOW()
        WHERE id=$7 RETURNING *`,

@@ -107,7 +107,12 @@ router.get("/:id", checkEventAccess, async (req, res) => {
 // POST /api/events
 router.post("/", authorize("administrador"), ...eventRules, async (req, res) => {
   try {
-    const { name, description, date, venue, totalBudget, clientId } = req.body;
+    const name = req.body.name;
+    const description = req.body.description;
+    const date = req.body.date;
+    const venue = req.body.venue;
+    const totalBudget = req.body.total_budget ?? req.body.totalBudget;
+    const clientId = req.body.client_id || req.body.clientId;
     const { rows } = await query(
       `INSERT INTO events (name, description, date, venue, total_budget, client_id, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
@@ -122,7 +127,12 @@ router.post("/", authorize("administrador"), ...eventRules, async (req, res) => 
 // PUT /api/events/:id
 router.put("/:id", authorize("administrador"), async (req, res) => {
   try {
-    const { name, description, date, venue, totalBudget, status } = req.body;
+    const name = req.body.name;
+    const description = req.body.description;
+    const date = req.body.date;
+    const venue = req.body.venue;
+    const totalBudget = req.body.total_budget ?? req.body.totalBudget;
+    const status = req.body.status;
     const { rows: old } = await query("SELECT status, name FROM events WHERE id = $1", [req.params.id]);
     const { rows } = await query(
       `UPDATE events SET name=$1, description=$2, date=$3, venue=$4,
@@ -190,7 +200,7 @@ router.get("/:id/available-staff", authorize("administrador"), async (req, res) 
 // POST /api/events/:id/staff — asignar staff al evento
 router.post("/:id/staff", authorize("administrador"), async (req, res) => {
   try {
-    const { userId } = req.body;
+    const userId = req.body.user_id || req.body.userId;
     await query(
       "INSERT INTO event_staff (event_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
       [req.params.id, userId]
