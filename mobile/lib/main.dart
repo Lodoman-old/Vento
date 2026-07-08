@@ -23,6 +23,7 @@ import 'screens/payment_form_screen.dart';
 import 'screens/supplier_form_screen.dart';
 import 'screens/catalog_form_screen.dart';
 import 'models/event.dart';
+import 'dart:convert';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,7 +38,9 @@ void main() async {
 
   try { await api.init(); } catch (_) {}
   try { await auth.init(); } catch (_) {}
-  try { await NotificationService().init(); } catch (_) {}
+
+  final notif = NotificationService();
+  try { await notif.init(); } catch (_) {}
 
   runApp(MultiProvider(
     providers: [
@@ -47,8 +50,20 @@ void main() async {
     child: const VentoApp(),
   ));
 
-  try { NotificationService().checkAndScheduleAllReminders(); } catch (_) {}
+  try { notif.checkAndScheduleAllReminders(); } catch (_) {}
+
+  notif.onNotificationOpened = (data) {
+    final eventId = data['event_id'] as String?;
+    if (eventId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final context = _navKey.currentContext;
+        if (context != null) Navigator.pushNamed(context, '/event', arguments: eventId);
+      });
+    }
+  };
 }
+
+final _navKey = GlobalKey<NavigatorState>();
 
 class VentoApp extends StatelessWidget {
   const VentoApp({super.key});
@@ -57,6 +72,7 @@ class VentoApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final api = context.watch<ApiService>();
     return MaterialApp(
+      navigatorKey: _navKey,
       title: 'Vento',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -75,8 +91,11 @@ class VentoApp extends StatelessWidget {
           case '/portal':
             return MaterialPageRoute(builder: (_) => const PortalScreen());
           case '/event':
-            final event = settings.arguments as Event;
-            return MaterialPageRoute(builder: (_) => EventDetailScreen(event: event));
+            final args = settings.arguments;
+            if (args is Event) {
+              return MaterialPageRoute(builder: (_) => EventDetailScreen(event: args));
+            }
+            return MaterialPageRoute(builder: (_) => EventDetailScreen(event: Event(id: args as String), isLoading: true));
           case '/event/new':
             final event = settings.arguments as Event?;
             return MaterialPageRoute(builder: (_) => EventFormScreen(event: event));

@@ -9,14 +9,13 @@ router.use(authenticate);
 // GET /api/notifications?eventId=&days=
 router.get("/", async (req, res) => {
   try {
-    const { eventId, days } = req.query;
+    const { event_id, days } = req.query;
     let sql, params;
 
     if (req.user.role === "administrador") {
       sql = "SELECT n.*, e.name AS event_name FROM notifications n LEFT JOIN events e ON e.id = n.event_id WHERE n.user_id = $1";
       params = [req.user.id];
     } else {
-      // staff solo ve notificaciones de eventos donde está asignado
       sql = `SELECT n.*, e.name AS event_name FROM notifications n
              LEFT JOIN events e ON e.id = n.event_id
              WHERE n.user_id = $1 AND (
@@ -26,9 +25,9 @@ router.get("/", async (req, res) => {
       params = [req.user.id];
     }
 
-    if (eventId) {
+    if (event_id) {
       sql += " AND n.event_id = $2";
-      params.push(eventId);
+      params.push(event_id);
     }
 
     if (days) {
@@ -79,6 +78,19 @@ router.patch("/:id/read", async (req, res) => {
 router.post("/read-all", async (req, res) => {
   try {
     await query("UPDATE notifications SET is_read = true WHERE user_id = $1 AND is_read = false", [req.user.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/notifications/register-token — guardar FCM token del usuario
+router.post("/register-token", async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: "Token requerido" });
+
+    await query("UPDATE users SET fcm_token = $1 WHERE id = $2", [token, req.user.id]);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

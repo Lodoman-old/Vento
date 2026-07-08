@@ -14,7 +14,8 @@ import 'payment_form_screen.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final Event event;
-  const EventDetailScreen({super.key, required this.event});
+  final bool isLoading;
+  const EventDetailScreen({super.key, required this.event, this.isLoading = false});
 
   @override
   State<EventDetailScreen> createState() => _EventDetailScreenState();
@@ -27,13 +28,22 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
   List<Quote> _quotes = [];
   bool _loading = true;
   String? _error;
+  Map<String, dynamic>? _eventData;
 
   @override
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 3, vsync: this);
-    _load();
+    if (widget.isLoading) { _fetchEvent(); } else { _load(); }
     _scheduleReminders();
+  }
+
+  Future<void> _fetchEvent() async {
+    try {
+      final data = await ApiService().get('/events/${widget.event.id}');
+      if (mounted) setState(() => _eventData = data);
+    } catch (_) {}
+    _load();
   }
 
   Future<void> _load() async {
@@ -66,7 +76,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
   }
 
   void _scheduleReminders() {
-    NotificationService().scheduleEventReminders(widget.event.id, widget.event.name, widget.event.date);
+    final data = _eventData;
+    final name = data != null ? (data['name'] as String? ?? widget.event.name) : widget.event.name;
+    final date = data != null ? (data['date'] != null ? DateTime.parse(data['date']) : widget.event.date) : widget.event.date;
+    NotificationService().scheduleEventReminders(widget.event.id, name, date);
   }
 
   Future<void> _toggleAgenda(AgendaItem item) async {
@@ -128,15 +141,19 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
-    final e = widget.event;
-    final dateFmt = DateFormat("d 'de' MMMM yyyy', 'HH:mm", 'es').format(e.date);
+    final eventData = _eventData ?? <String, dynamic>{};
+    final eName = eventData['name'] as String? ?? widget.event.name;
+    final eDate = eventData['date'] != null ? DateTime.parse(eventData['date']) : widget.event.date;
+    final eVenue = eventData['venue'] as String? ?? widget.event.venue;
+    final eStatus = eventData['status'] as String? ?? widget.event.status;
+    final dateFmt = DateFormat("d 'de' MMMM yyyy', 'HH:mm", 'es').format(eDate);
     final completed = _agenda.where((a) => a.isCompleted).length;
     final hired = _suppliers.where((s) => s.contractStatus == 'contratado').length;
-    final statusColorHex = _statusColor(e.status);
+    final statusColorHex = _statusColor(eStatus);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(e.name, style: const TextStyle(fontSize: 16)),
+        title: Text(eName, style: const TextStyle(fontSize: 16)),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit, size: 20),
@@ -165,15 +182,15 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
                         color: Color(int.parse('0x${statusColorHex}0C')),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(_statusLabel(e.status), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(int.parse('0xFF$statusColorHex')))),
+                      child: Text(_statusLabel(eStatus), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(int.parse('0xFF$statusColorHex')))),
                     ),
                   ]),
-                  if (e.venue != null) Padding(
+                  if (eVenue != null) Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Row(children: [
                       Icon(Icons.location_on_outlined, size: 14, color: Colors.grey.shade500),
                       const SizedBox(width: 4),
-                      Text(e.venue!, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                      Text(eVenue, style: const TextStyle(fontSize: 13, color: Colors.grey)),
                     ]),
                   ),
                   const SizedBox(height: 10),
