@@ -6,6 +6,44 @@ import { eventRules } from "../middleware/validate.js";
 import { query } from "../services/db.js";
 import { notifyStaff } from "../services/notifications.js";
 
+// Agenda por defecto cuando el evento se activa
+const DEFAULT_AGENDA = [
+  { title: "Montaje de mesas", description: "Colocar y alinear todas las mesas según el plano del evento", category: "montaje" },
+  { title: "Montaje de sillas", description: "Colocar sillas en cada mesa según el número de invitados", category: "montaje" },
+  { title: "Colocación de mantelería", description: "Poner manteles, cubremanteles y servilletas", category: "montaje" },
+  { title: "Montaje de vajilla y cubiertos", description: "Colocar platos, cubiertos y copas en cada lugar", category: "montaje" },
+  { title: "Centros de mesa y decoración", description: "Colocar centros de mesa, velas y adornos", category: "decoracion" },
+  { title: "Decoración general del salón", description: "Globos, letreros, cortinas y ambientación", category: "decoracion" },
+  { title: "Montaje de pista de baile", description: "Armar pista de baile si aplica", category: "montaje" },
+  { title: "Montaje de equipo de sonido", description: "Colocar bocinas, micrófonos y consola", category: "audio" },
+  { title: "Prueba de sonido", description: "Verificar niveles y micrófonos", category: "audio" },
+  { title: "Montaje de iluminación", description: "Colocar y programar iluminación ambiental y de pista", category: "decoracion" },
+  { title: "Montaje de barra y bebidas", description: "Preparar barra, hielos, bebidas y vasos", category: "catering" },
+  { title: "Revisión de catering", description: "Verificar llegada y montaje de alimentos", category: "catering" },
+  { title: "Señalética y bienvenida", description: "Colocar letreros de bienvenida, mesas y direccionales", category: "montaje" },
+  { title: "Revisión general", description: "Recorrido final para verificar que todo esté listo", category: "montaje" },
+];
+
+async function generateDefaultAgenda(eventId, eventDate) {
+  // Only generate if no agenda items exist yet
+  const { rows: existing } = await query("SELECT COUNT(*)::int AS count FROM agenda_items WHERE event_id = $1", [eventId]);
+  if (existing[0].count > 0) return;
+
+  const baseTime = new Date(eventDate);
+  // Start setup 4 hours before event
+  baseTime.setHours(baseTime.getHours() - 4);
+
+  for (let i = 0; i < DEFAULT_AGENDA.length; i++) {
+    const item = DEFAULT_AGENDA[i];
+    const startTime = new Date(baseTime.getTime() + i * 15 * 60 * 1000); // 15 min each
+    await query(
+      `INSERT INTO agenda_items (event_id, title, description, start_time, category, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [eventId, item.title, item.description, startTime.toISOString(), item.category, i]
+    );
+  }
+}
+
 const router = Router();
 
 router.use(authenticate);
@@ -113,11 +151,15 @@ router.post("/", authorize("administrador"), ...eventRules, async (req, res) => 
     const venue = req.body.venue;
     const totalBudget = req.body.total_budget ?? req.body.totalBudget;
     const clientId = req.body.client_id || req.body.clientId;
+    const status = req.body.status || "borrador";
     const { rows } = await query(
-      `INSERT INTO events (name, description, date, venue, total_budget, client_id, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [name, description, date, venue, totalBudget || 0, clientId, req.user.id]
+      `INSERT INTO events (name, description, date, venue, total_budget, client_id, created_by, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [name, description, date, venue, totalBudget || 0, clientId, req.user.id, status]
     );
+    if (status === "activo") {
+      await generateDefaultAgenda(rows[0].id, date);
+    }
     res.status(201).json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -149,6 +191,11 @@ router.put("/:id", authorize("administrador"), async (req, res) => {
         body: `"${old[0].name}" cambió de "${old[0].status}" a "${status}"`,
         type: "evento",
       });
+
+      // Auto-generar agenda por defecto al activar el evento
+      if (status === "activo") {
+        await generateDefaultAgenda(req.params.id, date);
+      }
     }
 
     res.json(rows[0]);
