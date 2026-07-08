@@ -1,0 +1,304 @@
+import { Router } from "express";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import { authenticate, authorize, checkEventAccess } from "../middleware/auth.js";
+import { eventRules } from "../middleware/validate.js";
+import { query } from "../services/db.js";
+import { notifyStaff } from "../services/notifications.js";
+
+const router = Router();
+
+router.use(authenticate);
+
+// GET /api/events?page=&limit=
+router.get("/", async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+    const offset = (page - 1) * limit;
+
+    let baseSql, countSql, params, countParams;
+
+    if (req.user.role === "administrador") {
+      baseSql = "SELECT * FROM events ORDER BY date DESC LIMIT $1 OFFSET $2";
+      countSql = "SELECT COUNT(*)::int AS total FROM events";
+      params = [limit, offset];
+      countParams = [];
+    } else if (req.user.role === "cliente") {
+      baseSql = "SELECT * FROM events WHERE client_id = $1 ORDER BY date DESC LIMIT $2 OFFSET $3";
+      countSql = "SELECT COUNT(*)::int AS total FROM events WHERE client_id = $1";
+      params = [req.user.id, limit, offset];
+      countParams = [req.user.id];
+    } else {
+      baseSql = `SELECT e.* FROM events e
+                 JOIN event_staff es ON es.event_id = e.id
+                 WHERE es.user_id = $1
+                 ORDER BY e.date DESC LIMIT $2 OFFSET $3`;
+      countSql = `SELECT COUNT(*)::int AS total FROM events e
+                  JOIN event_staff es ON es.event_id = e.id
+                  WHERE es.user_id = $1`;
+      params = [req.user.id, limit, offset];
+      countParams = [req.user.id];
+    }
+
+    const [data, countResult] = await Promise.all([
+      query(baseSql, params),
+      query(countSql, countParams),
+    ]);
+
+    res.json({
+      data: data.rows,
+      total: countResult.rows[0].total,
+      page,
+      limit,
+      totalPages: Math.ceil(countResult.rows[0].total / limit),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/events/calendar?year=&month= — eventos agrupados por dia del mes
+router.get("/calendar", async (req, res) => {
+  try {
+    const year = parseInt(req.query.year) || new Date().getFullYear();
+    const month = parseInt(req.query.month) || (new Date().getMonth() + 1);
+    const start = `${year}-${String(month).padStart(2, "0")}-01`;
+    const end = `${year}-${String(month).padStart(2, "0")}-${new Date(year, month, 0).getDate()}`;
+
+    const isAdmin = req.user.role === "administrador";
+    let sql, params;
+    if (isAdmin) {
+      sql = `SELECT id, name, date, status, venue, TO_CHAR(date, 'YYYY-MM-DD') AS day FROM events
+             WHERE date::date >= $1 AND date::date <= $2
+             ORDER BY date`;
+      params = [start, end];
+    } else {
+      sql = `SELECT e.id, e.name, e.date, e.status, e.venue, TO_CHAR(e.date, 'YYYY-MM-DD') AS day FROM events e
+             JOIN event_staff es ON es.event_id = e.id
+             WHERE es.user_id = $1 AND e.date::date >= $2 AND e.date::date <= $3
+             ORDER BY e.date`;
+      params = [req.user.id, start, end];
+    }
+
+    const { rows } = await query(sql, params);
+    const byDate = {};
+    rows.forEach((r) => {
+      if (!byDate[r.day]) byDate[r.day] = [];
+      byDate[r.day].push({ id: r.id, name: r.name, date: r.date, status: r.status, venue: r.venue });
+    });
+    res.json({ year, month, days: byDate, total: rows.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/events/:id
+router.get("/:id", checkEventAccess, async (req, res) => {
+  try {
+    const { rows } = await query("SELECT * FROM events WHERE id = $1", [req.params.id]);
+    if (rows.length === 0) return res.status(404).json({ error: "Evento no encontrado" });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/events
+router.post("/", authorize("administrador"), ...eventRules, async (req, res) => {
+  try {
+    const { name, description, date, venue, totalBudget, clientId } = req.body;
+    const { rows } = await query(
+      `INSERT INTO events (name, description, date, venue, total_budget, client_id, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [name, description, date, venue, totalBudget || 0, clientId, req.user.id]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/events/:id
+router.put("/:id", authorize("administrador"), async (req, res) => {
+  try {
+    const { name, description, date, venue, totalBudget, status } = req.body;
+    const { rows: old } = await query("SELECT status, name FROM events WHERE id = $1", [req.params.id]);
+    const { rows } = await query(
+      `UPDATE events SET name=$1, description=$2, date=$3, venue=$4,
+       total_budget=$5, status=COALESCE($6, status), updated_at=NOW()
+       WHERE id=$7 RETURNING *`,
+      [name, description, date, venue, totalBudget, status ?? null, req.params.id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: "Evento no encontrado" });
+
+    if (old.length > 0 && old[0].status !== status) {
+      await notifyStaff({
+        eventId: req.params.id,
+        title: "Estado del evento cambiado",
+        body: `"${old[0].name}" cambió de "${old[0].status}" a "${status}"`,
+        type: "evento",
+      });
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/events/:id
+router.delete("/:id", authorize("administrador"), async (req, res) => {
+  try {
+    await query("DELETE FROM events WHERE id = $1", [req.params.id]);
+    res.json({ deleted: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/events/:id/staff — staff asignado al evento
+router.get("/:id/staff", authorize("administrador"), async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT u.id, u.display_name, u.email, u.role, u.phone FROM users u
+       JOIN event_staff es ON es.user_id = u.id
+       WHERE es.event_id = $1`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/events/:id/available-staff — usuarios staff NO asignados
+router.get("/:id/available-staff", authorize("administrador"), async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT id, display_name, email, phone FROM users
+       WHERE role = 'staff' AND is_active = true
+       AND id NOT IN (SELECT user_id FROM event_staff WHERE event_id = $1)`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/events/:id/staff — asignar staff al evento
+router.post("/:id/staff", authorize("administrador"), async (req, res) => {
+  try {
+    const { userId } = req.body;
+    await query(
+      "INSERT INTO event_staff (event_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [req.params.id, userId]
+    );
+    res.status(201).json({ assigned: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/events/:id/staff/:userId — remover staff del evento
+router.delete("/:id/staff/:userId", authorize("administrador"), async (req, res) => {
+  try {
+    await query(
+      "DELETE FROM event_staff WHERE event_id = $1 AND user_id = $2",
+      [req.params.id, req.params.userId]
+    );
+    res.json({ removed: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/events/:id/client-access — obtener acceso cliente del evento
+router.get("/:id/client-access", authorize("administrador"), async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT u.id, u.display_name, u.username, u.role, u.is_active, u.expires_at
+       FROM users u JOIN events e ON e.client_id = u.id
+       WHERE e.id = $1 AND u.role = 'cliente'`,
+      [req.params.id]
+    );
+    res.json(rows[0] || null);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/events/:id/client-access — crear acceso cliente
+router.post("/:id/client-access", authorize("administrador"), async (req, res) => {
+  try {
+    const { rows: evt } = await query("SELECT date FROM events WHERE id = $1", [req.params.id]);
+    if (evt.length === 0) return res.status(404).json({ error: "Evento no encontrado" });
+
+    const eventDate = evt[0].date;
+    const dayStr = typeof eventDate === "string" ? eventDate.slice(0, 10) : new Date(eventDate).toISOString().slice(0, 10);
+    const username = `cliente_${dayStr.replace(/-/g, "")}`;
+    const password = crypto.randomUUID().slice(0, 10);
+    const hash = await bcrypt.hash(password, 10);
+    const expiresAt = new Date(eventDate);
+    expiresAt.setDate(expiresAt.getDate() + 1);
+
+    const { rows: user } = await query(
+      `INSERT INTO users (display_name, username, password_hash, role, expires_at)
+       VALUES ($1, $2, $3, 'cliente', $4)
+       ON CONFLICT (username) DO UPDATE SET password_hash = $3, expires_at = $4, is_active = true
+       RETURNING id`,
+      [`Cliente ${dayStr}`, username, hash, expiresAt]
+    );
+
+    await query("UPDATE events SET client_id = $1 WHERE id = $2", [user[0].id, req.params.id]);
+
+    await notifyStaff({ eventId: req.params.id, title: "Acceso cliente creado", body: "Se generó acceso para el cliente del evento", type: "cliente" });
+
+    res.status(201).json({ username, password, expiresAt, userId: user[0].id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/events/:id/client-access — revocar acceso cliente
+router.delete("/:id/client-access", authorize("administrador"), async (req, res) => {
+  try {
+    const { rows: evt } = await query("SELECT client_id FROM events WHERE id = $1", [req.params.id]);
+    if (evt.length === 0 || !evt[0].client_id) return res.status(404).json({ error: "Sin acceso cliente" });
+
+    await query("UPDATE users SET is_active = false WHERE id = $1", [evt[0].client_id]);
+    await query("UPDATE events SET client_id = NULL WHERE id = $1", [req.params.id]);
+
+    await notifyStaff({ eventId: req.params.id, title: "Acceso cliente revocado", body: "Se revocó el acceso del cliente al evento", type: "cliente" });
+    res.json({ revoked: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/events/:id/reset-client-password — regenerar contraseña del cliente
+router.post("/:id/reset-client-password", authorize("administrador"), async (req, res) => {
+  try {
+    const { rows: evt } = await query("SELECT client_id, date FROM events WHERE id = $1", [req.params.id]);
+    if (evt.length === 0 || !evt[0].client_id) return res.status(404).json({ error: "Sin acceso cliente" });
+
+    const password = crypto.randomUUID().slice(0, 10);
+    const hash = await bcrypt.hash(password, 10);
+    const eventDate = evt[0].date;
+    const expiresAt = new Date(eventDate);
+    expiresAt.setDate(expiresAt.getDate() + 1);
+
+    await query(
+      "UPDATE users SET password_hash = $1, expires_at = $2, is_active = true WHERE id = $3",
+      [hash, expiresAt, evt[0].client_id]
+    );
+
+    const { rows: user } = await query("SELECT username FROM users WHERE id = $1", [evt[0].client_id]);
+    res.json({ username: user[0]?.username, password, expiresAt });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+export default router;

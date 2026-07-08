@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <rect width="400" height="400" rx="20" fill="#a3f5e0"/>
+  <g transform="translate(200,155)" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.7">
+    <path d="M-30,-70 L-15,50 Q-15,70 0,70 Q15,70 15,50 L30,-70 Z"/>
+    <path d="M-30,-70 L30,-70" stroke-width="6"/>
+    <path d="M-20,-55 L20,-55" stroke-width="4"/>
+    <path d="M-15,-40 L15,-40" stroke-width="3"/>
+    <path d="M-10,-25 L10,-25" stroke-width="2"/>
+    <rect x="20" y="-45" width="25" height="50" rx="3"/>
+    <line x1="30" y1="-5" x2="35" y2="20" stroke-width="4"/>
+  </g>
+  <text x="200" y="310" font-family="system-ui, sans-serif" font-size="24" fill="#fff" text-anchor="middle" font-weight="500" opacity="0.9">Bebida</text>
+</svg>

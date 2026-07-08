@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <rect width="400" height="400" rx="20" fill="#f5cfa3"/>
+  <g transform="translate(200,155)" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.7">
+    <ellipse cx="0" cy="10" rx="75" ry="25"/>
+    <ellipse cx="0" cy="10" rx="75" ry="25" fill="#f5cfa3" fill-opacity="0.3"/>
+    <path d="M-40,10 L-40,-70 L-20,-60 L0,-70 L20,-60 L40,-70 L40,10" stroke-width="4"/>
+    <path d="M-25,-30 L25,-30" stroke-width="4"/>
+    <path d="M-25,-15 L25,-15" stroke-width="4"/>
+    <line x1="-60" y1="35" x2="-60" y2="80" stroke-width="5"/>
+    <line x1="60" y1="35" x2="60" y2="80" stroke-width="5"/>
+    <line x1="-75" y1="80" x2="75" y2="80" stroke-width="5"/>
+  </g>
+  <text x="200" y="310" font-family="system-ui, sans-serif" font-size="24" fill="#fff" text-anchor="middle" font-weight="500" opacity="0.9">Comida</text>
+</svg>

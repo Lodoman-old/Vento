@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <rect width="400" height="400" rx="20" fill="#a3b4f5"/>
+  <g transform="translate(200,155)" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.7">
+    <rect x="-25" y="-50" width="50" height="80" rx="4"/>
+    <path d="M25,-30 L55,-10 Q60,0 55,10 L25,30" stroke-width="5"/>
+    <path d="M35,-15 Q50,0 35,20" stroke-width="4"/>
+    <path d="M-25,-20 L-55,-20 Q-60,-15 -60,0 Q-60,15 -55,20 L-25,20" stroke-width="4"/>
+    <circle cx="-5" cy="10" r="6" fill="#fff" opacity="0.5"/>
+    <line x1="-5" y1="30" x2="-5" y2="55" stroke-width="4"/>
+    <line x1="-18" y1="55" x2="8" y2="55" stroke-width="4"/>
+  </g>
+  <text x="200" y="310" font-family="system-ui, sans-serif" font-size="24" fill="#fff" text-anchor="middle" font-weight="500" opacity="0.9">Sonido</text>
+</svg>
