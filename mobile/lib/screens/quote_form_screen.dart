@@ -92,9 +92,9 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> with SingleTickerProv
     setState(() => _saving = true);
     try {
       final items = _selectedItems.map((it) => {
-        'itemName': it.name,
+        'item_name': it.name,
         'quantity': it.quantity <= 0 ? 1 : it.quantity,
-        'unitPrice': it.unitPrice,
+        'unit_price': it.unitPrice,
       }).toList();
       if (items.isEmpty) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Agrega al menos un producto')));
@@ -102,8 +102,8 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> with SingleTickerProv
         return;
       }
       final data = await ApiService().post('/quotes', body: {
-        'eventId': widget.eventId,
-        'clientName': _clientCtrl.text.trim(),
+        'event_id': widget.eventId,
+        'client_name': _clientCtrl.text.trim(),
         'items': items,
       });
       _savedQuote = data;
@@ -142,7 +142,7 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> with SingleTickerProv
     final cyan = PdfColor.fromInt(0xFF22D3EE);
     final items = _savedQuote?['items'] as List? ?? [];
     final quote = _savedQuote ?? {};
-    final total = (quote['total'] ?? 0).toDouble();
+      final total = double.tryParse(quote['total']?.toString() ?? '0') ?? 0;
     final bold = pw.Font.helveticaBold();
     final normal = pw.Font.helvetica();
 
@@ -169,9 +169,9 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> with SingleTickerProv
           headers: ['Item', 'Cant', 'P/Unit', 'Subtotal'],
           data: items.map((i) => [
             i['itemName'] ?? i['item_name'] ?? '',
-            '${(i['quantity'] ?? 1).toStringAsFixed(0)}',
+            '${(int.tryParse(i['quantity']?.toString() ?? '1') ?? 1).toStringAsFixed(0)}',
             '\$${fm.format(double.tryParse(i['unitPrice']?.toString() ?? i['unit_price']?.toString() ?? '0') ?? 0)}',
-            '\$${fm.format((i['subtotal'] ?? 0).toDouble())}',
+            '\$${fm.format(double.tryParse(i['subtotal']?.toString() ?? '0') ?? 0)}',
           ]).toList(),
         ),
         pw.SizedBox(height: 10),
@@ -197,13 +197,13 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> with SingleTickerProv
   }
 
   Future<void> _shareWhatsApp() async {
-    final total = _savedQuote?['total'] ?? 0;
+    final total = double.tryParse(_savedQuote?['total']?.toString() ?? '0') ?? 0;
     final items = _savedQuote?['items'] as List? ?? [];
     final fm = NumberFormat('#,##0.00', 'es');
     final detail = items.where((i) => i['is_supplier_cost'] != true).map((i) =>
-      '${i['item_name'] ?? i['itemName'] ?? ''} x${(i['quantity'] ?? 1).toStringAsFixed(0)} = \$${fm.format((i['subtotal'] ?? 0).toDouble())}'
+      '${i['item_name'] ?? i['itemName'] ?? ''} x${(int.tryParse(i['quantity']?.toString() ?? '1') ?? 1).toStringAsFixed(0)} = \$${fm.format(double.tryParse(i['subtotal']?.toString() ?? '0') ?? 0)}'
     ).join('\n');
-    final supTotal = items.fold<double>(0, (s, i) => s + ((i['is_supplier_cost'] == true) ? (i['subtotal'] ?? 0).toDouble() : 0));
+    final supTotal = items.fold<double>(0, (s, i) => s + ((i['is_supplier_cost'] == true) ? (double.tryParse(i['subtotal']?.toString() ?? '0') ?? 0) : 0));
     final detailFinal = supTotal > 0 ? '$detail\n\nCostos de proveedores: \$${fm.format(supTotal)}' : detail;
 
     // Try to get/create client access credentials

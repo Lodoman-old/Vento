@@ -137,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     final e = _events[i];
                     final dateFmt = DateFormat('d MMM yyyy', 'es').format(e.date);
                     final statusColorHex = _statusColor(e.status);
-                    final isAdmin = user?.role == 'admin';
+                    final isAdmin = user?.role == 'administrador';
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 8),
