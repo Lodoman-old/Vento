@@ -594,25 +594,30 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
       final detail = await ApiService().get('/quotes/${q.id}');
       final items = (detail['items'] as List?)?.cast<Map>() ?? [];
       final fm = NumberFormat('#,##0.00', 'es');
+      double _parseSubtotal(dynamic v) => double.tryParse(v?.toString() ?? '0') ?? 0;
       final detailStr = items.where((i) => i['is_supplier_cost'] != true).map((i) =>
-        '${i['item_name'] ?? i['itemName'] ?? ''} x${(i['quantity'] ?? 1).toStringAsFixed(0)} = \$${fm.format((i['subtotal'] ?? 0).toDouble())}'
+        '${i['item_name'] ?? i['itemName'] ?? ''} x${(int.tryParse(i['quantity']?.toString() ?? '1') ?? 1).toStringAsFixed(0)} = \$${fm.format(_parseSubtotal(i['subtotal']))}'
       ).join('\n');
-      final supTotal = items.fold<double>(0, (s, i) => s + ((i['is_supplier_cost'] == true) ? (i['subtotal'] ?? 0).toDouble() : 0));
+      final supTotal = items.fold<double>(0, (s, i) => s + ((i['is_supplier_cost'] == true) ? _parseSubtotal(i['subtotal']) : 0));
       final detailFinal = supTotal > 0 ? '$detailStr\n\nCostos de proveedores: \$${fm.format(supTotal)}' : detailStr;
 
       String portalInfo = '';
       try {
         final clientAccess = await ApiService().post('/events/${widget.event.id}/client-access');
         if (clientAccess is Map && clientAccess['username'] != null) {
-          final base = ApiService().baseUrl.replaceAll(RegExp(r':\d+$'), '');
-          portalInfo = '\n\nAccede a tu portal:\n$base:5173/portal\nUsuario: ${clientAccess['username']}\nContraseña: ${clientAccess['password']}';
+          final portalUrl = ApiService().baseUrl.contains('onrender.com')
+              ? 'https://vento-web.onrender.com/portal'
+              : '${ApiService().baseUrl.replaceAll(RegExp(r':\d+$'), '')}:5173/portal';
+          portalInfo = '\n\nAccede a tu portal:\n$portalUrl\nUsuario: ${clientAccess['username']}\nContraseña: ${clientAccess['password']}';
         }
       } catch (_) {
         try {
           final clientAccess = await ApiService().get('/events/${widget.event.id}/client-access');
           if (clientAccess is Map && clientAccess['username'] != null) {
-            final base = ApiService().baseUrl.replaceAll(RegExp(r':\d+$'), '');
-            portalInfo = '\n\nAccede a tu portal:\n$base:5173/portal\nUsuario: ${clientAccess['username']}\nContraseña: ${clientAccess['password']}';
+            final portalUrl = ApiService().baseUrl.contains('onrender.com')
+                ? 'https://vento-web.onrender.com/portal'
+                : '${ApiService().baseUrl.replaceAll(RegExp(r':\d+$'), '')}:5173/portal';
+            portalInfo = '\n\nAccede a tu portal:\n$portalUrl\nUsuario: ${clientAccess['username']}\nContraseña: ${clientAccess['password']}';
           }
         } catch (_) {}
       }
