@@ -28,9 +28,9 @@ export default function SettingsPage() {
       fd.append("type", "logo");
       const data = await api.upload("/upload", fd);
       setSettings({ ...settings, logo_url: data.url });
-      toast.success("Logo subido correctamente");
+      toast("Logo subido correctamente");
     } catch (err) {
-      toast.error("Error al subir el logo");
+      toast("Error al subir el logo", "error");
     } finally {
       setUploading(false);
     }
@@ -45,7 +45,7 @@ export default function SettingsPage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
-      toast.error("Error al guardar cambios");
+      toast("Error al guardar cambios", "error");
     }
   }
 

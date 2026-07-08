@@ -60,7 +60,7 @@ export default function EventsPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     try {
-      const payload = { ...form, totalBudget: form.totalBudget ? Number(form.totalBudget) : 0 };
+      const payload = { ...form, total_budget: form.totalBudget ? Number(form.totalBudget) : 0 };
       if (editing) {
         await api.put(`/events/${editing}`, payload);
         toast("Evento actualizado");

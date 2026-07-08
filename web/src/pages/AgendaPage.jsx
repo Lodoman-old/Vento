@@ -25,7 +25,7 @@ export default function AgendaPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const loadAgenda = useCallback(async () => {
-    try { setItems(await api.get(`/agenda?eventId=${id}`)); } catch (err) { console.error(err); }
+    try { setItems(await api.get(`/agenda?event_id=${id}`)); } catch (err) { console.error(err); }
   }, [id]);
 
   useEffect(() => {
@@ -55,7 +55,7 @@ export default function AgendaPage() {
 
   async function toggleComplete(item) {
     try {
-      await api.patch(`/agenda/${item.id}`, { isCompleted: !item.is_completed });
+      await api.patch(`/agenda/${item.id}`, { is_completed: !item.is_completed });
       toast(item.is_completed ? "Tarea desmarcada" : "Tarea completada");
     } catch (err) { toast(err.message, "error"); }
   }
@@ -78,11 +78,16 @@ export default function AgendaPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     try {
+      const payload = {
+        title: form.title, description: form.description, category: form.category,
+        start_time: form.startTime, end_time: form.endTime, assigned_to: form.assignedTo,
+        event_id: id,
+      };
       if (editing) {
-        await api.put(`/agenda/${editing}`, form);
+        await api.put(`/agenda/${editing}`, payload);
         toast("Tarea actualizada");
       } else {
-        await api.post("/agenda", { ...form, eventId: id });
+        await api.post("/agenda", payload);
         toast("Tarea creada");
       }
       setShowForm(false); setEditing(null); setForm(emptyForm);
