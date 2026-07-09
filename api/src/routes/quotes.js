@@ -12,48 +12,54 @@ async function generatePaymentPlan(quoteId, total, eventId) {
 
   const now = new Date();
   const eventDt = new Date(ev.date);
-  const msUntilEvent = eventDt - now;
+  const durationMs = eventDt - now;
+  if (durationMs <= 0) return;
 
-  if (msUntilEvent <= 0) return;
+  const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
 
-  const monthsUntil = Math.max(1, Math.round(msUntilEvent / (1000 * 60 * 60 * 24 * 30.44)));
+  // Number of payments = months until event (min 2)
+  const monthsUntil = Math.max(1, Math.round(durationMs / (1000 * 60 * 60 * 24 * 30.44)));
   const numPayments = Math.max(2, monthsUntil);
 
-  const downPayment = Math.round(total * 0.30 * 100) / 100;
-  const remainingTotal = total - downPayment;
-  const oneWeek = 7 * 24 * 60 * 60 * 1000;
-  const oneMonth = 30 * 24 * 60 * 60 * 1000;
+  const downAmount = Math.round(total * 0.30 * 100) / 100;
+  const remainingTotal = total - downAmount;
 
-  // Payment 1: down payment due in 1 week
-  await query(
-    `INSERT INTO payments (quote_id, amount, payment_date, method, notes)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [quoteId, downPayment, new Date(now.getTime() + oneWeek), "enganche", "Enganche 30% - Apartar fecha"]
-  );
+  // Equal amounts for remaining payments
+  const perInstallment = Math.round((remainingTotal / (numPayments - 1)) * 100) / 100;
+  const lastInstallment = Math.round((remainingTotal - perInstallment * (numPayments - 2)) * 100) / 100;
 
-  if (numPayments === 2) {
-    await query(
-      `INSERT INTO payments (quote_id, amount, payment_date, method, notes)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [quoteId, remainingTotal, new Date(eventDt.getTime() - oneWeek), "mensualidad", "Pago final"]
-    );
-    return;
+  // Payment dates
+  // Date 0: anticipo at now + 1 week (or at duration * 0.15 if event is very close)
+  const p0Ms = Math.min(oneWeekMs, durationMs * 0.15);
+  // Last payment: 1 week before event (or at duration * 0.85 if very close)
+  const pLastMs = Math.max(durationMs - oneWeekMs, durationMs * 0.85);
+
+  const dates = [new Date(now.getTime() + p0Ms)];
+  if (numPayments > 2) {
+    const gap = (pLastMs - p0Ms) / (numPayments - 2);
+    for (let i = 1; i < numPayments - 1; i++) {
+      dates.push(new Date(now.getTime() + p0Ms + gap * i));
+    }
   }
+  dates.push(new Date(now.getTime() + pLastMs));
 
-  const installmentAmount = Math.round((remainingTotal / (numPayments - 1)) * 100) / 100;
-  const installmentStart = new Date(now.getTime() + oneMonth);
-  const duration = eventDt - installmentStart;
+  // Build amounts array
+  const amounts = [downAmount];
+  for (let i = 1; i < numPayments - 1; i++) amounts.push(perInstallment);
+  amounts.push(lastInstallment);
 
+  // Labels & methods
+  const labels = ["Enganche 30% - Apartar fecha"];
   for (let i = 1; i < numPayments; i++) {
-    const progress = (i - 1) / (numPayments - 2);
-    const dueDate = new Date(installmentStart.getTime() + progress * duration);
-    const isLast = i === numPayments - 1;
-    const amount = isLast ? remainingTotal - installmentAmount * (numPayments - 2) : installmentAmount;
+    labels.push(numPayments === 2 ? "Pago final" : `Mensualidad ${i}/${numPayments - 1}`);
+  }
+  const methods = ["enganche", ...Array(numPayments - 1).fill("mensualidad")];
 
+  for (let i = 0; i < numPayments; i++) {
     await query(
       `INSERT INTO payments (quote_id, amount, payment_date, method, notes)
        VALUES ($1, $2, $3, $4, $5)`,
-      [quoteId, amount, dueDate, "mensualidad", `Mensualidad ${i}/${numPayments - 1}`]
+      [quoteId, amounts[i], dates[i], methods[i], labels[i]]
     );
   }
 }
