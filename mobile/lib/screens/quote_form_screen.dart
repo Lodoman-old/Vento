@@ -138,9 +138,11 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> with SingleTickerProv
 
   Future<Uint8List> _buildPdf() async {
     final fm = NumberFormat('#,##0.00', 'es');
+    final df = DateFormat('dd/MM/yyyy');
     final navy = PdfColor.fromInt(0xFF0F172A);
     final cyan = PdfColor.fromInt(0xFF22D3EE);
     final items = _savedQuote?['items'] as List? ?? [];
+    final payments = _savedQuote?['payments'] as List? ?? [];
     final quote = _savedQuote ?? {};
       final total = double.tryParse(quote['total']?.toString() ?? '0') ?? 0;
     final bold = pw.Font.helveticaBold();
@@ -179,6 +181,26 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> with SingleTickerProv
           pw.Text('Total: \$${fm.format(total)}',
               style: pw.TextStyle(font: bold, fontSize: 14, color: navy)),
         ]),
+        if (payments.isNotEmpty) ...[
+          pw.SizedBox(height: 24),
+          pw.Text('Plan de pagos', style: pw.TextStyle(font: bold, fontSize: 12, color: navy)),
+          pw.SizedBox(height: 8),
+          pw.TableHelper.fromTextArray(
+            headerStyle: pw.TextStyle(font: bold, fontSize: 8, color: PdfColors.white),
+            headerDecoration: pw.BoxDecoration(color: navy),
+            rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300, width: 0.5))),
+            columnWidths: {0: const pw.FlexColumnWidth(2), 1: const pw.FlexColumnWidth(1.5), 2: const pw.FlexColumnWidth(2.5)},
+            headers: ['Fecha', 'Monto', 'Concepto'],
+            data: payments.map((p) {
+              final date = p['payment_date'] != null ? DateTime.tryParse(p['payment_date'].toString()) : null;
+              return [
+                date != null ? df.format(date) : '—',
+                '\$${fm.format(double.tryParse(p['amount']?.toString() ?? '0') ?? 0)}',
+                p['notes'] ?? p['method'] ?? '—',
+              ];
+            }).toList(),
+          ),
+        ],
       ],
     ));
     return await doc.save();

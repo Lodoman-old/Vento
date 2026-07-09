@@ -7,7 +7,7 @@ function imgSrc(url) {
   return url?.startsWith("http") ? url : url || "/placeholder.svg";
 }
 
-const emptyForm = { name: "", category: "", unit_price: "",   unit_type: "pieza", description: "", stock_available: "", image_url: "" };
+const emptyForm = { name: "", category: "", unit_price: "",   unit_type: "pieza", description: "", stock_available: "", image_url: "", needs_return: false };
 const unitTypes = ["pieza", "persona", "metro", "juego", "kg", "litro"];
 
 export default function CatalogPage() {
@@ -59,6 +59,7 @@ export default function CatalogPage() {
       description: item.description || "",
       stock_available: item.stock_available?.toString() || "",
       image_url: item.image_url || "",
+      needs_return: !!item.needs_return,
     });
     setShowForm(true);
   }
@@ -85,6 +86,7 @@ export default function CatalogPage() {
         unit_price: Number(form.unit_price), description: form.description || null,
         stock_available: form.stock_available ? Number(form.stock_available) : 0,
         image_url: form.image_url || null,
+        needs_return: !!form.needs_return,
       };
       if (editing) {
         await api.put(`/catalog/${editing}`, payload);
@@ -106,6 +108,7 @@ export default function CatalogPage() {
         description: item.description || null,
         stock_available: item.stock_available || 0,
         image_url: item.image_url || null,
+        needs_return: !!item.needs_return,
         is_active: !item.is_active,
       });
       toast(item.is_active ? "Producto desactivado" : "Producto activado");
@@ -195,6 +198,11 @@ export default function CatalogPage() {
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" rows="2" />
             </div>
+            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+              <input type="checkbox" checked={form.needs_return} onChange={(e) => setForm({ ...form, needs_return: e.target.checked })}
+                className="rounded border-slate-300 text-vento-cyan focus:ring-vento-cyan" />
+              Requiere devolución
+            </label>
             <div>
               <label className="text-sm text-slate-500 block mb-1">Foto del producto</label>
               <div className="flex items-center gap-3">
@@ -254,6 +262,9 @@ export default function CatalogPage() {
                       <p className="text-xs text-slate-400 capitalize">{item.unit_type}</p>
                       {item.stock_available > 0 && (
                         <p className="text-xs text-slate-400 mt-1">Stock: {item.stock_available}</p>
+                      )}
+                      {item.needs_return && (
+                        <span className="inline-block text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded mt-1 font-medium">Requiere devolución</span>
                       )}
                       {!item.is_active && (
                         <span className="text-[10px] text-red-500 font-medium">Desactivado</span>

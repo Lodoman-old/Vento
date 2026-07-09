@@ -618,8 +618,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
     try {
       final detail = await ApiService().get('/quotes/${q.id}');
       final items = (detail['items'] as List?)?.cast<Map>() ?? [];
+      final payments = (detail['payments'] as List?)?.cast<Map>() ?? [];
       final company = await ApiService().get('/settings');
       final fm = NumberFormat('#,##0.00', 'es');
+      final df = DateFormat('dd/MM/yyyy');
       final navy = PdfColor.fromInt(0xFF0F172A);
 
       final doc = pw.Document();
@@ -654,6 +656,26 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
           pw.Row(mainAxisAlignment: pw.MainAxisAlignment.end, children: [
             pw.Text('Total: \$${fm.format(q.total)}', style: pw.TextStyle(font: pw.Font.helveticaBold(), fontSize: 14, color: navy)),
           ]),
+          if (payments.isNotEmpty) ...[
+            pw.SizedBox(height: 24),
+            pw.Text('Plan de pagos', style: pw.TextStyle(font: pw.Font.helveticaBold(), fontSize: 12, color: navy)),
+            pw.SizedBox(height: 8),
+            pw.TableHelper.fromTextArray(
+              headerStyle: pw.TextStyle(font: pw.Font.helveticaBold(), fontSize: 8, color: PdfColors.white),
+              headerDecoration: pw.BoxDecoration(color: navy),
+              rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300, width: 0.5))),
+              columnWidths: {0: const pw.FlexColumnWidth(2), 1: const pw.FlexColumnWidth(1.5), 2: const pw.FlexColumnWidth(2.5)},
+              headers: ['Fecha', 'Monto', 'Concepto'],
+              data: payments.map((p) {
+                final date = p['payment_date'] != null ? DateTime.tryParse(p['payment_date'].toString()) : null;
+                return [
+                  date != null ? df.format(date) : '—',
+                  '\$${fm.format(double.tryParse(p['amount']?.toString() ?? '0') ?? 0)}',
+                  p['notes'] ?? p['method'] ?? '—',
+                ];
+              }).toList(),
+            ),
+          ],
         ],
       ));
       final pdfBytes = await doc.save();
