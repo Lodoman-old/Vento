@@ -8,14 +8,14 @@ import { notifyStaff } from "../services/notifications.js";
 
 // Agenda por defecto cuando el evento se activa
 const DEFAULT_AGENDA = [
-  { title: "Decoración general del salón", description: "Globos, letreros, cortinas y ambientación", category: "decoracion" },
-  { title: "Montaje de mesas", description: "Colocar y alinear todas las mesas según el plano del evento", category: "logistica" },
-  { title: "Montaje de sillas", description: "Colocar sillas en cada mesa según el número de invitados", category: "logistica" },
-  { title: "Colocación de mantelería", description: "Poner manteles, cubremanteles y servilletas", category: "logistica" },
-  { title: "Montaje de vajilla y cubiertos", description: "Colocar platos, cubiertos y copas en cada lugar", category: "logistica" },
-  { title: "Centros de mesa y decoración", description: "Colocar centros de mesa, velas y adornos", category: "decoracion" },
-  { title: "Señalética y bienvenida", description: "Colocar letreros de bienvenida, mesas y direccionales", category: "logistica" },
-  { title: "Revisión general", description: "Recorrido final para verificar que todo esté listo", category: "logistica" },
+  { title: "Decoración general del salón", description: "Globos, letreros, cortinas y ambientación", category: "decoracion", hoursFromBase: -1 },
+  { title: "Montaje de mesas", description: "Colocar y alinear todas las mesas según el plano del evento", category: "logistica", hoursFromBase: 1 },
+  { title: "Montaje de sillas", description: "Colocar sillas en cada mesa según el número de invitados", category: "logistica", hoursFromBase: 2 },
+  { title: "Colocación de mantelería", description: "Poner manteles, cubremanteles y servilletas", category: "logistica", hoursFromBase: 3 },
+  { title: "Montaje de vajilla y cubiertos", description: "Colocar platos, cubiertos y copas en cada lugar", category: "logistica", hoursFromBase: 3 },
+  { title: "Centros de mesa y decoración", description: "Colocar centros de mesa, velas y adornos", category: "decoracion", hoursFromBase: 3 },
+  { title: "Señalética y bienvenida", description: "Colocar letreros de bienvenida, mesas y direccionales", category: "logistica", hoursFromBase: 3.5 },
+  { title: "Revisión general", description: "Recorrido final para verificar que todo esté listo", category: "logistica", hoursFromBase: 4 },
 ];
 
 async function generateDefaultAgenda(eventId, eventDate) {
@@ -29,15 +29,7 @@ async function generateDefaultAgenda(eventId, eventDate) {
 
   for (let i = 0; i < DEFAULT_AGENDA.length; i++) {
     const item = DEFAULT_AGENDA[i];
-    let offset;
-    if (i === 0) {
-      offset = 0;
-    } else if (i === 1) {
-      offset = 2 * 60 * 60 * 1000; // 2 hours after first
-    } else {
-      offset = 2 * 60 * 60 * 1000 + (i - 1) * 60 * 60 * 1000; // 1h each after that
-    }
-    const startTime = new Date(baseTime.getTime() + offset);
+    const startTime = new Date(baseTime.getTime() + item.hoursFromBase * 60 * 60 * 1000);
     await query(
       `INSERT INTO agenda_items (event_id, title, description, start_time, category, sort_order)
        VALUES ($1, $2, $3, $4, $5, $6)`,
