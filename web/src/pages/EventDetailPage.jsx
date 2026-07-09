@@ -179,7 +179,7 @@ setLoading(false);
     { id: "checklist", label: `Checklist (${checklist.filter((c) => c.is_completed).length}/${checklist.length})` },
     { id: "suppliers", label: `Proveedores (${suppliers.length})` },
     { id: "quotes", label: `Cotizaciones (${quotes.length})`, adminOnly: true },
-    { id: "inventory", label: "Inventario", adminOnly: true },
+    { id: "inventory", label: "Inventario" },
   ];
   const tabs = allTabs.filter((t) => !t.adminOnly || user?.role === "administrador");
 
