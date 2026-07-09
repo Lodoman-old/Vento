@@ -31,9 +31,9 @@ async function generateDefaultAgenda(eventId, eventDate) {
     const item = DEFAULT_AGENDA[i];
     let offset;
     if (i < 3) {
-      offset = i * 4 * 60 * 60 * 1000; // first 3: 4 hours apart
+      offset = i * 2 * 60 * 60 * 1000; // first 3: evenly spaced over 4 hours
     } else {
-      offset = (3 * 4 * 60 * 60 * 1000) + (i - 2) * 30 * 60 * 1000; // rest: 30 min apart
+      offset = 4 * 60 * 60 * 1000 + (i - 2) * 30 * 60 * 1000; // rest: 30 min apart
     }
     const startTime = new Date(baseTime.getTime() + offset);
     await query(
