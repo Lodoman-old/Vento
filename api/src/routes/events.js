@@ -366,14 +366,6 @@ router.post("/:id/reset-client-password", authorize("administrador"), async (req
 });
 
 // GET /api/events/:id/inventory — calcula el inventario necesario desde la cotización aceptada
-const INVENTORY_CATEGORIES = ['sillas', 'mesas', 'manteleria', 'loza'];
-const INVENTORY_ITEM_MAP = {
-  'sillas': 'Sillas',
-  'mesas': 'Mesas',
-  'manteleria': 'Mantelería',
-  'loza': 'Vajilla y cubiertos',
-};
-
 router.get("/:id/inventory", async (req, res) => {
   try {
     const { rows: quotes } = await query(
@@ -383,40 +375,27 @@ router.get("/:id/inventory", async (req, res) => {
     if (quotes.length === 0) return res.json([]);
 
     const { rows: items } = await query(
-      "SELECT item_name, quantity FROM quote_items WHERE quote_id = $1 AND is_supplier_cost = false ORDER BY id",
+      "SELECT item_name, quantity, needs_return FROM quote_items WHERE quote_id = $1 AND is_supplier_cost = false ORDER BY id",
       [quotes[0].id]
     );
 
-    // Get movements for this event
     const { rows: movements } = await query(
       "SELECT item_name, quantity, movement_type FROM inventory_movements WHERE event_id = $1",
       [req.params.id]
     );
 
-    const inventory = [];
-    for (const cat of INVENTORY_CATEGORIES) {
-      const catLabel = INVENTORY_ITEM_MAP[cat];
-      const singular = catLabel.toLowerCase().slice(0, -1);
-      const catItems = items.filter(i =>
-        i.item_name.toLowerCase().includes(singular) ||
-        i.item_name.toLowerCase().includes(cat)
-      );
-      if (catItems.length > 0) {
-        const total = catItems.reduce((s, i) => s + Number(i.quantity), 0);
-        const llevadoTotal = movements
-          .filter(m => m.movement_type === 'llevado' && m.item_name.toLowerCase().includes(singular))
-          .reduce((s, m) => s + Number(m.quantity), 0);
-        const regresadoTotal = movements
-          .filter(m => m.movement_type === 'regresado' && m.item_name.toLowerCase().includes(singular))
-          .reduce((s, m) => s + Number(m.quantity), 0);
-        inventory.push({
-          category: catLabel,
-          items: catItems.map(i => ({ name: i.item_name, quantity: Number(i.quantity) })),
-          total,
-          llevado: llevadoTotal - regresadoTotal,
-        });
-      }
+    function getMovements(itemName, type) {
+      return movements
+        .filter(m => m.movement_type === type && m.item_name.toLowerCase() === itemName.toLowerCase())
+        .reduce((s, m) => s + Number(m.quantity), 0);
     }
+
+    const inventory = items.map(i => ({
+      name: i.item_name,
+      quantity: Number(i.quantity),
+      needs_return: i.needs_return,
+      llevado: getMovements(i.item_name, 'llevado') - getMovements(i.item_name, 'regresado'),
+    }));
 
     res.json(inventory);
   } catch (err) {

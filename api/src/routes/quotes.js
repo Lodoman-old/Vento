@@ -120,6 +120,7 @@ router.post("/", authorize("administrador"), ...quoteRules, async (req, res) => 
       itemName: i.item_name || i.itemName,
       unitPrice: i.unit_price ?? i.unitPrice,
       quantity: i.quantity,
+      needsReturn: i.needs_return ?? i.needsReturn ?? false,
     });
     const userTotal = items.reduce((sum, i) => sum + (i.quantity || 1) * (normalizeItem(i).unitPrice || 0), 0);
 
@@ -144,9 +145,9 @@ router.post("/", authorize("administrador"), ...quoteRules, async (req, res) => 
     for (const raw of items) {
       const item = normalizeItem(raw);
       await query(
-        `INSERT INTO quote_items (quote_id, item_name, quantity, unit_price, is_supplier_cost)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [quoteId, item.itemName, item.quantity, item.unitPrice, false]
+        `INSERT INTO quote_items (quote_id, item_name, quantity, unit_price, is_supplier_cost, needs_return)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [quoteId, item.itemName, item.quantity, item.unitPrice, false, item.needsReturn]
       );
     }
     for (const sup of supplierCosts) {
@@ -213,6 +214,7 @@ router.put("/:id", authorize("administrador"), ...quoteUpdateRules, async (req, 
       itemName: i.item_name || i.itemName,
       unitPrice: i.unit_price ?? i.unitPrice,
       quantity: i.quantity,
+      needsReturn: i.needs_return ?? i.needsReturn ?? false,
     });
     const userTotal = items.reduce((sum, i) => sum + (i.quantity || 1) * (normalizeItem(i).unitPrice || 0), 0);
 
@@ -237,9 +239,9 @@ router.put("/:id", authorize("administrador"), ...quoteUpdateRules, async (req, 
     for (const raw of items) {
       const item = normalizeItem(raw);
       await query(
-        `INSERT INTO quote_items (quote_id, item_name, quantity, unit_price, is_supplier_cost)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [req.params.id, item.itemName, item.quantity, item.unitPrice, false]
+        `INSERT INTO quote_items (quote_id, item_name, quantity, unit_price, is_supplier_cost, needs_return)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [req.params.id, item.itemName, item.quantity, item.unitPrice, false, item.needsReturn]
       );
     }
     for (const sup of supplierCosts) {

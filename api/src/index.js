@@ -69,6 +69,7 @@ async function start() {
     moved_by UUID REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT NOW()
   )`);
+  await query("ALTER TABLE quote_items ADD COLUMN IF NOT EXISTS needs_return BOOLEAN DEFAULT false");
   httpServer.listen(PORT, () => {
     console.log(`[vento-api] corriendo en http://localhost:${PORT}`);
   });
