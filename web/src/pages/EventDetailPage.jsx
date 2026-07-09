@@ -527,7 +527,14 @@ setLoading(false);
                 <div key={cat.category} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                   <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                     <h3 className="font-semibold text-sm">{cat.category}</h3>
-                    <span className="text-xs bg-vento-cyan/10 text-vento-cyan px-2 py-0.5 rounded-full font-medium">Total: {cat.total}</span>
+                    <div className="flex items-center gap-2">
+                      {cat.llevado > 0 && (
+                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                          {cat.llevado} pz en montaje
+                        </span>
+                      )}
+                      <span className="text-xs bg-vento-cyan/10 text-vento-cyan px-2 py-0.5 rounded-full font-medium">Total: {cat.total}</span>
+                    </div>
                   </div>
                   <div className="px-4 py-2 space-y-1">
                     {cat.items.map((item, i) => (
@@ -536,6 +543,18 @@ setLoading(false);
                         <span className="font-medium text-vento-navy">{item.quantity} pz</span>
                       </div>
                     ))}
+                  </div>
+                  <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 flex gap-2">
+                    <button onClick={async () => { try { await api.post(`/events/${id}/inventory-movement`, { item_name: cat.category, quantity: cat.total - cat.llevado, movement_type: 'llevado' }); const res = await api.get(`/events/${id}/inventory`); setInventory(res); } catch (e) { alert(e.message); } }}
+                      disabled={cat.llevado >= cat.total}
+                      className="text-xs px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                      Llevar a montaje
+                    </button>
+                    <button onClick={async () => { try { await api.post(`/events/${id}/inventory-movement`, { item_name: cat.category, quantity: cat.llevado, movement_type: 'regresado' }); const res = await api.get(`/events/${id}/inventory`); setInventory(res); } catch (e) { alert(e.message); } }}
+                      disabled={cat.llevado <= 0}
+                      className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                      Regresar
+                    </button>
                   </div>
                 </div>
               ))}

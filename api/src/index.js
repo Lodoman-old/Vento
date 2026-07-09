@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import { createServer } from "http";
 import { Server } from "socket.io";
-import { connectDb } from "./services/db.js";
+import { connectDb, query } from "./services/db.js";
 import { setupRedis } from "./services/redis.js";
 import { setupSocketEvents } from "./socket.js";
 import authRoutes from "./routes/auth.js";
@@ -58,6 +58,17 @@ const PORT = process.env.PORT || 4000;
 async function start() {
   await connectDb();
   await setupRedis();
+
+  // Ensure inventory_movements table exists
+  await query(`CREATE TABLE IF NOT EXISTS inventory_movements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id UUID REFERENCES events(id) ON DELETE CASCADE NOT NULL,
+    item_name VARCHAR(200) NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    movement_type VARCHAR(20) NOT NULL,
+    moved_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )`);
   httpServer.listen(PORT, () => {
     console.log(`[vento-api] corriendo en http://localhost:${PORT}`);
   });

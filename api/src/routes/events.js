@@ -376,7 +376,6 @@ const INVENTORY_ITEM_MAP = {
 
 router.get("/:id/inventory", async (req, res) => {
   try {
-    // Get the accepted quote with items for this event
     const { rows: quotes } = await query(
       "SELECT id FROM quotes WHERE event_id = $1 AND status = 'aceptado' ORDER BY created_at DESC LIMIT 1",
       [req.params.id]
@@ -388,23 +387,56 @@ router.get("/:id/inventory", async (req, res) => {
       [quotes[0].id]
     );
 
-    // Match items to inventory categories by keyword
+    // Get movements for this event
+    const { rows: movements } = await query(
+      "SELECT item_name, quantity, movement_type FROM inventory_movements WHERE event_id = $1",
+      [req.params.id]
+    );
+
     const inventory = [];
     for (const cat of INVENTORY_CATEGORIES) {
+      const catLabel = INVENTORY_ITEM_MAP[cat];
+      const singular = catLabel.toLowerCase().slice(0, -1);
       const catItems = items.filter(i =>
-        i.item_name.toLowerCase().includes(INVENTORY_ITEM_MAP[cat].toLowerCase().slice(0, -1)) ||
-        i.item_name.toLowerCase().includes(cat.slice(0, -1))
+        i.item_name.toLowerCase().includes(singular) ||
+        i.item_name.toLowerCase().includes(cat)
       );
       if (catItems.length > 0) {
+        const total = catItems.reduce((s, i) => s + Number(i.quantity), 0);
+        const llevadoTotal = movements
+          .filter(m => m.movement_type === 'llevado' && m.item_name.toLowerCase().includes(singular))
+          .reduce((s, m) => s + Number(m.quantity), 0);
+        const regresadoTotal = movements
+          .filter(m => m.movement_type === 'regresado' && m.item_name.toLowerCase().includes(singular))
+          .reduce((s, m) => s + Number(m.quantity), 0);
         inventory.push({
-          category: INVENTORY_ITEM_MAP[cat],
+          category: catLabel,
           items: catItems.map(i => ({ name: i.item_name, quantity: Number(i.quantity) })),
-          total: catItems.reduce((s, i) => s + Number(i.quantity), 0),
+          total,
+          llevado: llevadoTotal - regresadoTotal,
         });
       }
     }
 
     res.json(inventory);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/events/:id/inventory-movement — registrar llevado/regresado
+router.post("/:id/inventory-movement", async (req, res) => {
+  try {
+    const { item_name, quantity, movement_type } = req.body;
+    if (!item_name || !quantity || !['llevado', 'regresado'].includes(movement_type)) {
+      return res.status(400).json({ error: "item_name, quantity y movement_type (llevado/regresado) requeridos" });
+    }
+    const { rows } = await query(
+      `INSERT INTO inventory_movements (event_id, item_name, quantity, movement_type, moved_by)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [req.params.id, item_name, quantity, movement_type, req.user.id]
+    );
+    res.status(201).json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
