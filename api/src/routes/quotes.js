@@ -261,6 +261,22 @@ router.put("/:id", authorize("administrador"), ...quoteUpdateRules, async (req, 
   }
 });
 
+// POST /api/quotes/:id/regenerate-payments
+router.post("/:id/regenerate-payments", authorize("administrador"), async (req, res) => {
+  try {
+    const { rows: quote } = await query("SELECT event_id, total FROM quotes WHERE id = $1", [req.params.id]);
+    if (quote.length === 0) return res.status(404).json({ error: "Cotización no encontrada" });
+
+    await query("DELETE FROM payments WHERE quote_id = $1 AND method IN ('enganche', 'mensualidad')", [req.params.id]);
+    await generatePaymentPlan(req.params.id, Number(quote[0].total), quote[0].event_id);
+
+    const { rows: payments } = await query("SELECT * FROM payments WHERE quote_id = $1 ORDER BY payment_date", [req.params.id]);
+    res.json(payments);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /api/quotes/:id
 router.delete("/:id", authorize("administrador"), async (req, res) => {
   try {

@@ -703,10 +703,48 @@ function QuoteDetail({ quoteId }) {
         )}
       </table>
 
-      {/* Pagos */}
-      <div className="mt-4 pt-3 border-t border-slate-200">
+      {/* Plan de pagos */}
+      {data.payments?.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-slate-200">
+          <span className="text-xs font-medium text-slate-500 mb-2 block">Plan de pagos</span>
+          <div className="space-y-1 mb-2">
+            {data.payments.map((p, i) => {
+              const isPlanned = p.method === "enganche" || p.method === "mensualidad";
+              return (
+                <div key={p.id} className="flex items-center justify-between bg-white rounded px-3 py-1.5 border border-slate-100 text-xs">
+                  <div className="flex items-center gap-3">
+                    <span className={`font-semibold ${isPlanned ? "text-vento-navy" : "text-green-600"}`}>
+                      ${Number(p.amount).toLocaleString()}
+                    </span>
+                    <span className="text-slate-400">{p.notes || p.method}</span>
+                    <span className="text-slate-400">{new Date(p.payment_date).toLocaleDateString("es-MX")}</span>
+                  </div>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${isPlanned ? "bg-slate-100 text-slate-400" : "bg-green-100 text-green-700"}`}>
+                    {isPlanned ? "Pendiente" : "Pagado"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          {user?.role === "administrador" && (
+            <button onClick={async () => {
+              try {
+                await api.post(`/quotes/${quoteId}/regenerate-payments`);
+                api.get(`/payments?quote_id=${quoteId}`).then(setPayments); api.get(`/quotes/${quoteId}`).then(setData);
+                toast("Plan de pagos regenerado");
+              } catch (e) { toast(e.message, "error"); }
+            }}
+              className="text-[10px] text-vento-cyan hover:underline mt-1">
+              Regenerar plan de pagos
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Pagos reales */}
+      <div className="mt-3 pt-2 border-t border-slate-200">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-slate-500">Pagos / Anticipos</span>
+          <span className="text-xs font-medium text-slate-500">Registro de pagos</span>
           {user?.role === "administrador" && (
             <button onClick={() => setShowPaymentForm(!showPaymentForm)}
               className="text-[10px] px-2 py-1 bg-vento-cyan text-vento-navy rounded-lg font-medium">
@@ -735,10 +773,10 @@ function QuoteDetail({ quoteId }) {
         )}
 
         <div className="space-y-1 mb-2">
-          {payments.map((p) => (
+          {payments.filter(p => p.method !== "enganche" && p.method !== "mensualidad").map((p) => (
             <div key={p.id} className="flex items-center justify-between bg-white rounded px-3 py-1.5 border border-slate-100 text-xs">
               <div className="flex items-center gap-3">
-                <span className="font-semibold text-green-600">{user?.role === "administrador" ? `$${Number(p.amount).toLocaleString()}` : "—"}</span>
+                <span className="font-semibold text-green-600">${Number(p.amount).toLocaleString()}</span>
                 <span className="text-slate-400 capitalize">{p.method}</span>
                 {p.reference && <span className="text-slate-400">{p.reference}</span>}
                 {p.notes && <span className="text-slate-400">{p.notes}</span>}
@@ -749,10 +787,10 @@ function QuoteDetail({ quoteId }) {
               )}
             </div>
           ))}
-          {payments.length === 0 && <p className="text-[10px] text-slate-400">Sin pagos registrados</p>}
+          {payments.filter(p => p.method !== "enganche" && p.method !== "mensualidad").length === 0 && <p className="text-[10px] text-slate-400">Sin pagos registrados</p>}
         </div>
 
-        {payments.length > 0 && user?.role === "administrador" && (
+        {user?.role === "administrador" && (
           <div className="flex gap-4 text-[10px] text-slate-500 font-medium">
             <span>Pagado: <span className="text-green-600">${paidTotal.toLocaleString()}</span></span>
             <span>Saldo: <span className={balance > 0 ? "text-amber-600" : "text-green-600"}>${balance.toLocaleString()}</span></span>

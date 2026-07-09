@@ -10,7 +10,7 @@ router.get("/", authorize("administrador"), async (req, res) => {
   try {
     const quoteId = req.query.quote_id || req.query.quoteId;
     const { rows } = await query(
-      "SELECT * FROM payments WHERE quote_id = $1 ORDER BY payment_date DESC",
+      "SELECT * FROM payments WHERE quote_id = $1 ORDER BY payment_date ASC",
       [quoteId]
     );
     res.json(rows);
