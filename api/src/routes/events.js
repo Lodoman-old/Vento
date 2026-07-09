@@ -8,20 +8,20 @@ import { notifyStaff } from "../services/notifications.js";
 
 // Agenda por defecto cuando el evento se activa
 const DEFAULT_AGENDA = [
-  { title: "Montaje de mesas", description: "Colocar y alinear todas las mesas según el plano del evento", category: "montaje" },
-  { title: "Montaje de sillas", description: "Colocar sillas en cada mesa según el número de invitados", category: "montaje" },
-  { title: "Colocación de mantelería", description: "Poner manteles, cubremanteles y servilletas", category: "montaje" },
-  { title: "Montaje de vajilla y cubiertos", description: "Colocar platos, cubiertos y copas en cada lugar", category: "montaje" },
+  { title: "Montaje de mesas", description: "Colocar y alinear todas las mesas según el plano del evento", category: "logistica" },
+  { title: "Montaje de sillas", description: "Colocar sillas en cada mesa según el número de invitados", category: "logistica" },
+  { title: "Colocación de mantelería", description: "Poner manteles, cubremanteles y servilletas", category: "logistica" },
+  { title: "Montaje de vajilla y cubiertos", description: "Colocar platos, cubiertos y copas en cada lugar", category: "logistica" },
   { title: "Centros de mesa y decoración", description: "Colocar centros de mesa, velas y adornos", category: "decoracion" },
   { title: "Decoración general del salón", description: "Globos, letreros, cortinas y ambientación", category: "decoracion" },
-  { title: "Montaje de pista de baile", description: "Armar pista de baile si aplica", category: "montaje" },
-  { title: "Montaje de equipo de sonido", description: "Colocar bocinas, micrófonos y consola", category: "audio" },
-  { title: "Prueba de sonido", description: "Verificar niveles y micrófonos", category: "audio" },
+  { title: "Montaje de pista de baile", description: "Armar pista de baile si aplica", category: "logistica" },
+  { title: "Montaje de equipo de sonido", description: "Colocar bocinas, micrófonos y consola", category: "musica" },
+  { title: "Prueba de sonido", description: "Verificar niveles y micrófonos", category: "musica" },
   { title: "Montaje de iluminación", description: "Colocar y programar iluminación ambiental y de pista", category: "decoracion" },
-  { title: "Montaje de barra y bebidas", description: "Preparar barra, hielos, bebidas y vasos", category: "catering" },
-  { title: "Revisión de catering", description: "Verificar llegada y montaje de alimentos", category: "catering" },
-  { title: "Señalética y bienvenida", description: "Colocar letreros de bienvenida, mesas y direccionales", category: "montaje" },
-  { title: "Revisión general", description: "Recorrido final para verificar que todo esté listo", category: "montaje" },
+  { title: "Montaje de barra y bebidas", description: "Preparar barra, hielos, bebidas y vasos", category: "comida" },
+  { title: "Revisión de catering", description: "Verificar llegada y montaje de alimentos", category: "comida" },
+  { title: "Señalética y bienvenida", description: "Colocar letreros de bienvenida, mesas y direccionales", category: "logistica" },
+  { title: "Revisión general", description: "Recorrido final para verificar que todo esté listo", category: "logistica" },
 ];
 
 async function generateDefaultAgenda(eventId, eventDate) {
