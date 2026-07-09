@@ -265,10 +265,16 @@ export default function AgendaPage() {
                 </span>
               )}
               {user?.role === "administrador" && (
-                <button onClick={() => openEdit(item)}
-                  className="text-xs text-slate-400 hover:text-vento-cyan opacity-0 group-hover:opacity-100 transition p-1">
-                  ✎
-                </button>
+                <>
+                  <button onClick={() => openEdit(item)}
+                    className="text-xs text-slate-400 hover:text-vento-cyan opacity-0 group-hover:opacity-100 transition p-1">
+                    ✎
+                  </button>
+                  <button onClick={() => setDeleteTarget(item.id)}
+                    className="text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition p-1">
+                    ✕
+                  </button>
+                </>
               )}
             </div>
           </div>

@@ -176,7 +176,17 @@ router.put("/:id", authorize("administrador"), async (req, res) => {
 // DELETE /api/agenda/:id
 router.delete("/:id", authorize("administrador"), async (req, res) => {
   try {
+    const { rows: item } = await query("SELECT event_id FROM agenda_items WHERE id = $1", [req.params.id]);
+    if (item.length === 0) return res.status(404).json({ error: "Tarea no encontrada" });
+
     await query("DELETE FROM agenda_items WHERE id = $1", [req.params.id]);
+
+    const io = getIO();
+    if (io) {
+      io.to(`event:${item[0].event_id}`).emit("agenda:deleted", { agendaId: req.params.id });
+    }
+    publishToRedis("agenda:deleted", `event:${item[0].event_id}`, { agendaId: req.params.id });
+
     res.json({ deleted: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
