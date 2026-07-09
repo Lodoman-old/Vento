@@ -8,18 +8,12 @@ import { notifyStaff } from "../services/notifications.js";
 
 // Agenda por defecto cuando el evento se activa
 const DEFAULT_AGENDA = [
+  { title: "Decoración general del salón", description: "Globos, letreros, cortinas y ambientación", category: "decoracion" },
   { title: "Montaje de mesas", description: "Colocar y alinear todas las mesas según el plano del evento", category: "logistica" },
   { title: "Montaje de sillas", description: "Colocar sillas en cada mesa según el número de invitados", category: "logistica" },
   { title: "Colocación de mantelería", description: "Poner manteles, cubremanteles y servilletas", category: "logistica" },
   { title: "Montaje de vajilla y cubiertos", description: "Colocar platos, cubiertos y copas en cada lugar", category: "logistica" },
   { title: "Centros de mesa y decoración", description: "Colocar centros de mesa, velas y adornos", category: "decoracion" },
-  { title: "Decoración general del salón", description: "Globos, letreros, cortinas y ambientación", category: "decoracion" },
-  { title: "Montaje de pista de baile", description: "Armar pista de baile si aplica", category: "logistica" },
-  { title: "Montaje de equipo de sonido", description: "Colocar bocinas, micrófonos y consola", category: "musica" },
-  { title: "Prueba de sonido", description: "Verificar niveles y micrófonos", category: "musica" },
-  { title: "Montaje de iluminación", description: "Colocar y programar iluminación ambiental y de pista", category: "decoracion" },
-  { title: "Montaje de barra y bebidas", description: "Preparar barra, hielos, bebidas y vasos", category: "comida" },
-  { title: "Revisión de catering", description: "Verificar llegada y montaje de alimentos", category: "comida" },
   { title: "Señalética y bienvenida", description: "Colocar letreros de bienvenida, mesas y direccionales", category: "logistica" },
   { title: "Revisión general", description: "Recorrido final para verificar que todo esté listo", category: "logistica" },
 ];
@@ -35,7 +29,13 @@ async function generateDefaultAgenda(eventId, eventDate) {
 
   for (let i = 0; i < DEFAULT_AGENDA.length; i++) {
     const item = DEFAULT_AGENDA[i];
-    const startTime = new Date(baseTime.getTime() + i * 15 * 60 * 1000); // 15 min each
+    let offset;
+    if (i < 3) {
+      offset = i * 4 * 60 * 60 * 1000; // first 3: 4 hours apart
+    } else {
+      offset = (3 * 4 * 60 * 60 * 1000) + (i - 2) * 30 * 60 * 1000; // rest: 30 min apart
+    }
+    const startTime = new Date(baseTime.getTime() + offset);
     await query(
       `INSERT INTO agenda_items (event_id, title, description, start_time, category, sort_order)
        VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -169,32 +169,45 @@ router.post("/", authorize("administrador"), ...eventRules, async (req, res) => 
 // PUT /api/events/:id
 router.put("/:id", authorize("administrador"), async (req, res) => {
   try {
-    const name = req.body.name;
-    const description = req.body.description;
-    const date = req.body.date;
-    const venue = req.body.venue;
-    const totalBudget = req.body.total_budget ?? req.body.totalBudget;
-    const status = req.body.status;
-    const { rows: old } = await query("SELECT status, name FROM events WHERE id = $1", [req.params.id]);
-    const { rows } = await query(
-      `UPDATE events SET name=$1, description=$2, date=$3, venue=$4,
-       total_budget=$5, status=COALESCE($6, status), updated_at=NOW()
-       WHERE id=$7 RETURNING *`,
-      [name, description, date, venue, totalBudget, status ?? null, req.params.id]
-    );
-    if (rows.length === 0) return res.status(404).json({ error: "Evento no encontrado" });
+    const { rows: old } = await query("SELECT status, name, date FROM events WHERE id = $1", [req.params.id]);
+    if (old.length === 0) return res.status(404).json({ error: "Evento no encontrado" });
 
-    if (old.length > 0 && old[0].status !== status) {
+    const sets = [];
+    const params = [];
+    let idx = 1;
+
+    if (req.body.name !== undefined) { sets.push(`name=$${idx++}`); params.push(req.body.name); }
+    if (req.body.description !== undefined) { sets.push(`description=$${idx++}`); params.push(req.body.description); }
+    if (req.body.date !== undefined) { sets.push(`date=$${idx++}`); params.push(req.body.date); }
+    if (req.body.venue !== undefined) { sets.push(`venue=$${idx++}`); params.push(req.body.venue); }
+    if (req.body.total_budget !== undefined || req.body.totalBudget !== undefined) {
+      sets.push(`total_budget=$${idx++}`);
+      params.push(req.body.total_budget ?? req.body.totalBudget);
+    }
+    if (req.body.status !== undefined) { sets.push(`status=$${idx++}`); params.push(req.body.status); }
+
+    if (sets.length === 0) return res.status(400).json({ error: "Nada que actualizar" });
+
+    sets.push("updated_at=NOW()");
+    params.push(req.params.id);
+
+    const { rows } = await query(
+      `UPDATE events SET ${sets.join(", ")} WHERE id=$${idx} RETURNING *`,
+      params
+    );
+
+    const newStatus = req.body.status;
+    if (old.length > 0 && old[0].status !== newStatus) {
       await notifyStaff({
         eventId: req.params.id,
         title: "Estado del evento cambiado",
-        body: `"${old[0].name}" cambió de "${old[0].status}" a "${status}"`,
+        body: `"${old[0].name}" cambió de "${old[0].status}" a "${newStatus}"`,
         type: "evento",
       });
 
-      // Auto-generar agenda por defecto al activar el evento
-      if (status === "activo") {
-        await generateDefaultAgenda(req.params.id, date);
+      if (newStatus === "activo") {
+        const eventDate = req.body.date || old[0].date;
+        await generateDefaultAgenda(req.params.id, eventDate);
       }
     }
 
