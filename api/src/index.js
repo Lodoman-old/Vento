@@ -6,6 +6,7 @@ import { Server } from "socket.io";
 import { connectDb, query } from "./services/db.js";
 import { setupRedis } from "./services/redis.js";
 import { setupSocketEvents } from "./socket.js";
+import { authenticate, authorize } from "./middleware/auth.js";
 import authRoutes from "./routes/auth.js";
 import eventRoutes from "./routes/events.js";
 import agendaRoutes from "./routes/agenda.js";
@@ -49,6 +50,31 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/checklist", checklistRoutes);
 app.use("/api/payments", paymentRoutes);
+
+// Quote-items endpoints (edit/delete items from a quote)
+app.put("/api/quote-items/:id", authenticate, authorize("administrador"), async (req, res) => {
+  try {
+    const { item_name, quantity, unit_price } = req.body;
+    const { rows } = await query(
+      `UPDATE quote_items SET item_name = COALESCE($1, item_name), quantity = COALESCE($2, quantity), unit_price = COALESCE($3, unit_price)
+       WHERE id = $4 RETURNING *`,
+      [item_name || null, quantity || null, unit_price || null, req.params.id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: "Item no encontrado" });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+app.delete("/api/quote-items/:id", authenticate, authorize("administrador"), async (req, res) => {
+  try {
+    const result = await query("DELETE FROM quote_items WHERE id = $1", [req.params.id]);
+    if (result.rowCount === 0) return res.status(404).json({ error: "Item no encontrado" });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Socket.io
 setupSocketEvents(io);

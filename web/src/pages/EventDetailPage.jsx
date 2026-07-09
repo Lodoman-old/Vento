@@ -25,6 +25,8 @@ export default function EventDetailPage() {
   const [generatingReport, setGeneratingReport] = useState(false);
   const [inventory, setInventory] = useState([]);
   const [loadingInventory, setLoadingInventory] = useState(false);
+  const [editingInvItem, setEditingInvItem] = useState(null);
+  const [invEditQty, setInvEditQty] = useState(1);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", date: "", venue: "", description: "", total_budget: "", status: "" });
   const [editSaving, setEditSaving] = useState(false);
@@ -537,7 +539,7 @@ setLoading(false);
                       )}
                     </div>
                   </div>
-                  <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 flex gap-2">
+                  <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 flex gap-2 flex-wrap">
                     <button onClick={async () => { try { await api.post(`/events/${id}/inventory-movement`, { item_name: item.name, quantity: item.quantity - item.llevado, movement_type: 'llevado' }); const res = await api.get(`/events/${id}/inventory`); setInventory(res); } catch (e) { alert(e.message); } }}
                       disabled={item.llevado >= item.quantity}
                       className="text-xs px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition disabled:opacity-40 disabled:cursor-not-allowed">
@@ -548,6 +550,30 @@ setLoading(false);
                       className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
                       Regresar
                     </button>
+                    {item.quote_item_id && editingInvItem === item.quote_item_id ? (
+                      <div className="flex items-center gap-1">
+                        <input type="number" value={invEditQty} min="0" onChange={(e) => setInvEditQty(Number(e.target.value))}
+                          className="w-16 px-2 py-1 border border-slate-200 rounded text-xs" />
+                        <button onClick={async () => { try { await api.put(`/quote-items/${item.quote_item_id}`, { quantity: invEditQty }); setEditingInvItem(null); const res = await api.get(`/events/${id}/inventory`); setInventory(res); toast("Cantidad actualizada"); } catch (e) { toast(e.message, "error"); } }}
+                          className="text-xs px-2 py-1 bg-vento-cyan text-vento-navy rounded">OK</button>
+                        <button onClick={() => setEditingInvItem(null)} className="text-xs px-2 py-1 text-slate-400 hover:text-slate-600">✕</button>
+                      </div>
+                    ) : (
+                      <>
+                        {user?.role === "administrador" && (
+                          <button onClick={() => { setEditingInvItem(item.quote_item_id); setInvEditQty(item.quantity); }}
+                            className="text-xs px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition">
+                            Editar
+                          </button>
+                        )}
+                        {user?.role === "administrador" && (
+                          <button onClick={async () => { if (!confirm(`Eliminar "${item.name}" del inventario?`)) return; try { await api.delete(`/quote-items/${item.quote_item_id}`); const res = await api.get(`/events/${id}/inventory`); setInventory(res); toast("Producto eliminado"); } catch (e) { toast(e.message, "error"); } }}
+                            className="text-xs px-3 py-1.5 bg-white border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition">
+                            Eliminar
+                          </button>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               ))}

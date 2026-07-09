@@ -375,7 +375,7 @@ router.get("/:id/inventory", async (req, res) => {
     if (quotes.length === 0) return res.json([]);
 
     const { rows: items } = await query(
-      "SELECT item_name, quantity, needs_return FROM quote_items WHERE quote_id = $1 AND is_supplier_cost = false ORDER BY id",
+      "SELECT id as quote_item_id, item_name, quantity, needs_return FROM quote_items WHERE quote_id = $1 AND is_supplier_cost = false ORDER BY id",
       [quotes[0].id]
     );
 
@@ -394,6 +394,7 @@ router.get("/:id/inventory", async (req, res) => {
       name: i.item_name,
       quantity: Number(i.quantity),
       needs_return: i.needs_return,
+      quote_item_id: i.quote_item_id,
       llevado: getMovements(i.item_name, 'llevado') - getMovements(i.item_name, 'regresado'),
     }));
 

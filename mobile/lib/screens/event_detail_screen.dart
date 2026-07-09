@@ -9,6 +9,7 @@ import '../models/agenda_item.dart';
 import '../models/supplier.dart';
 import '../models/quote.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import 'payment_form_screen.dart';
 
@@ -759,12 +760,17 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
         ])),
       ]);
     }
+    final isAdmin = AuthService().currentUser?.isAdmin ?? false;
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: _inventory.length,
       itemBuilder: (_, i) {
-        final cat = _inventory[i];
-        final items = (cat['items'] as List?)?.cast<Map>() ?? [];
+        final item = _inventory[i];
+        final name = item['name'] ?? '';
+        final quantity = int.tryParse(item['quantity']?.toString() ?? '0') ?? 0;
+        final llevado = int.tryParse(item['llevado']?.toString() ?? '0') ?? 0;
+        final needsReturn = item['needs_return'] == true;
+        final quoteItemId = item['quote_item_id']?.toString();
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -772,25 +778,127 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
             padding: const EdgeInsets.all(12),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text(cat['category'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(color: Colors.cyan.shade50, borderRadius: BorderRadius.circular(12)),
-                  child: Text('Total: ${cat['total']}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.cyan.shade800)),
+                Expanded(
+                  child: Row(children: [
+                    if (needsReturn)
+                      Container(
+                        margin: const EdgeInsets.only(right: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(color: Colors.amber.shade100, borderRadius: BorderRadius.circular(8)),
+                        child: Text('Regresa', style: TextStyle(fontSize: 10, color: Colors.amber.shade800, fontWeight: FontWeight.w600)),
+                      ),
+                    Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  ]),
                 ),
-              ]),
-              const Divider(height: 16),
-              ...items.map((item) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Expanded(child: Text(item['name'] ?? '', style: const TextStyle(fontSize: 13))),
-                  Text('${item['quantity']} pz', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(color: Colors.cyan.shade50, borderRadius: BorderRadius.circular(12)),
+                    child: Text('$quantity pz', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.cyan.shade800)),
+                  ),
+                  if (llevado > 0)
+                    Container(
+                      margin: const EdgeInsets.only(left: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(12)),
+                      child: Text('$llevado en montaje', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.amber.shade800)),
+                    ),
                 ]),
-              )),
+              ]),
+              const SizedBox(height: 8),
+              Row(children: [
+                _actionBtn('Llevar', Colors.amber, llevado >= quantity, () => _inventoryMovement(name, quantity - llevado, 'llevado')),
+                const SizedBox(width: 6),
+                _actionBtn('Regresar', Colors.green, llevado <= 0, () => _inventoryMovement(name, llevado, 'regresado')),
+                if (quoteItemId != null && isAdmin) ...[
+                  const Spacer(),
+                  _actionBtn('Editar', Colors.blue, false, () => _editInventoryItem(quoteItemId, name, quantity)),
+                  const SizedBox(width: 6),
+                  _actionBtn('Eliminar', Colors.red, false, () => _deleteInventoryItem(quoteItemId, name)),
+                ],
+              ]),
             ]),
           ),
         );
       },
     );
+  }
+
+  Widget _actionBtn(String label, Color color, bool disabled, VoidCallback onPressed) {
+    return SizedBox(
+      height: 28,
+      child: TextButton(
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          backgroundColor: color.withValues(alpha: 0.1),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        ),
+        onPressed: disabled ? null : onPressed,
+        child: Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
+      ),
+    );
+  }
+
+  Future<void> _inventoryMovement(String itemName, int quantity, String type) async {
+    try {
+      await ApiService().post('/events/${widget.event.id}/inventory-movement', body: {
+        'item_name': itemName,
+        'quantity': quantity,
+        'movement_type': type,
+      });
+      _loadInventory();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  Future<void> _editInventoryItem(String quoteItemId, String currentName, int currentQty) async {
+    final qtyCtrl = TextEditingController(text: currentQty.toString());
+    final nameCtrl = TextEditingController(text: currentName);
+    final result = await showDialog<Map>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Editar producto'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Nombre', border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          TextField(controller: qtyCtrl, decoration: const InputDecoration(labelText: 'Cantidad', border: OutlineInputBorder()), keyboardType: TextInputType.number),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, {'item_name': nameCtrl.text, 'quantity': int.tryParse(qtyCtrl.text) ?? 1}), child: const Text('Guardar')),
+        ],
+      ),
+    );
+    if (result == null) return;
+    try {
+      await ApiService().put('/quote-items/$quoteItemId', body: result);
+      _loadInventory();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Producto actualizado')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  Future<void> _deleteInventoryItem(String quoteItemId, String name) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Eliminar producto'),
+        content: Text('¿Eliminar "$name" del inventario?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('Eliminar', style: TextStyle(color: Colors.white))),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      await ApiService().delete('/quote-items/$quoteItemId');
+      _loadInventory();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Producto eliminado')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 }

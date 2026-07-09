@@ -514,11 +514,6 @@ export default function QuotesPage() {
                   </p>
                   {form.selectedItems.map((item, i) => (
                     <div key={i} className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2">
-                      <label className="flex items-center gap-1 text-[10px] text-slate-400 cursor-pointer shrink-0" title="Necesita regresarse">
-                        <input type="checkbox" checked={item.needs_return || false}
-                          onChange={(e) => updateItem(i, "needs_return", e.target.checked)}
-                          className="w-3 h-3 accent-amber-500" />
-                      </label>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{item.item_name}</p>
                         <p className="text-[11px] text-slate-400">${Number(item.unit_price).toLocaleString()} c/u</p>
