@@ -64,10 +64,10 @@ router.post("/", authorize("administrador"), ...quoteRules, async (req, res) => 
 
     // Fetch supplier costs for this event
     const { rows: supplierCosts } = await query(
-      `SELECT sc.name, es.budget_amount
-       FROM event_suppliers es
-       JOIN supplier_catalog sc ON sc.id = es.supplier_id
-       WHERE es.event_id = $1 AND es.budget_amount > 0`,
+      `SELECT sc.name, COALESCE(es.budget_amount, 0) AS budget_amount
+        FROM event_suppliers es
+        JOIN supplier_catalog sc ON sc.id = es.supplier_id
+        WHERE es.event_id = $1`,
       [eventId]
     );
     const supplierTotal = supplierCosts.reduce((sum, s) => sum + Number(s.budget_amount), 0);
@@ -154,10 +154,10 @@ router.put("/:id", authorize("administrador"), ...quoteUpdateRules, async (req, 
 
     // Fetch supplier costs for this event
     const { rows: supplierCosts } = await query(
-      `SELECT sc.name, es.budget_amount
-       FROM event_suppliers es
-       JOIN supplier_catalog sc ON sc.id = es.supplier_id
-       WHERE es.event_id = $1 AND es.budget_amount > 0`,
+      `SELECT sc.name, COALESCE(es.budget_amount, 0) AS budget_amount
+        FROM event_suppliers es
+        JOIN supplier_catalog sc ON sc.id = es.supplier_id
+        WHERE es.event_id = $1`,
       [eventId]
     );
     const supplierTotal = supplierCosts.reduce((sum, s) => sum + Number(s.budget_amount), 0);
