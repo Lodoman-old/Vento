@@ -317,6 +317,35 @@ export default function QuotesPage() {
               fillColor: (i) => i === 0 ? "#0F172A" : (i % 2 === 0 ? "#F8FAFC" : null),
             },
           } : null,
+          full.payments?.length > 0 ? { text: "PLAN DE PAGOS", fontSize: 12, bold: true, color: "#0F172A", margin: [0, 20, 0, 8] } : null,
+          full.payments?.length > 0 ? {
+            table: {
+              headerRows: 1,
+              widths: [85, 90, "*"],
+              body: [
+                [
+                  { text: "Fecha", style: "tableHeader" },
+                  { text: "Monto", style: "tableHeader", alignment: "right" },
+                  { text: "Concepto", style: "tableHeader" },
+                ],
+                ...full.payments.map((p) => [
+                  { text: p.payment_date ? new Date(p.payment_date).toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" }) : "—", fontSize: 8 },
+                  { text: fm(p.amount), alignment: "right", fontSize: 8 },
+                  { text: p.notes || p.method || "—", fontSize: 8 },
+                ]),
+              ],
+            },
+            layout: {
+              hLineWidth: () => 0.5,
+              vLineWidth: () => 0,
+              hLineColor: () => "#E2E8F0",
+              paddingLeft: () => 6,
+              paddingRight: () => 6,
+              paddingTop: () => 4,
+              paddingBottom: () => 4,
+              fillColor: (i) => i === 0 ? "#0F172A" : (i % 2 === 0 ? "#F8FAFC" : null),
+            },
+          } : null,
           company?.quote_footer ? { text: `\n${company.quote_footer}`, fontSize: 9, color: "#94A3B8", margin: [0, 20, 0, 0] } : null,
           full.client_phone ? { text: `Tel. cliente: ${full.client_phone}`, fontSize: 9, color: "#94A3B8", margin: [0, 12, 0, 0] } : null,
         ].filter(Boolean),
