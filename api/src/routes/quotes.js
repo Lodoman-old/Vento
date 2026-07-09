@@ -4,6 +4,60 @@ import { quoteRules, quoteUpdateRules } from "../middleware/validate.js";
 import { query } from "../services/db.js";
 import { createNotification } from "../services/notifications.js";
 
+async function generatePaymentPlan(quoteId, total, eventId) {
+  if (total <= 0) return;
+
+  const { rows: [ev] } = await query("SELECT date FROM events WHERE id = $1", [eventId]);
+  if (!ev) return;
+
+  const now = new Date();
+  const eventDt = new Date(ev.date);
+  const msUntilEvent = eventDt - now;
+
+  if (msUntilEvent <= 0) return;
+
+  const monthsUntil = Math.max(1, Math.round(msUntilEvent / (1000 * 60 * 60 * 24 * 30.44)));
+  const numPayments = Math.max(2, monthsUntil);
+
+  const downPayment = Math.round(total * 0.30 * 100) / 100;
+  const remainingTotal = total - downPayment;
+  const oneWeek = 7 * 24 * 60 * 60 * 1000;
+  const oneMonth = 30 * 24 * 60 * 60 * 1000;
+
+  // Payment 1: down payment due in 1 week
+  await query(
+    `INSERT INTO payments (quote_id, amount, payment_date, method, notes)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [quoteId, downPayment, new Date(now.getTime() + oneWeek), "enganche", "Enganche 30% - Apartar fecha"]
+  );
+
+  if (numPayments === 2) {
+    await query(
+      `INSERT INTO payments (quote_id, amount, payment_date, method, notes)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [quoteId, remainingTotal, new Date(eventDt.getTime() - oneWeek), "mensualidad", "Pago final"]
+    );
+    return;
+  }
+
+  const installmentAmount = Math.round((remainingTotal / (numPayments - 1)) * 100) / 100;
+  const installmentStart = new Date(now.getTime() + oneMonth);
+  const duration = eventDt - installmentStart;
+
+  for (let i = 1; i < numPayments; i++) {
+    const progress = (i - 1) / (numPayments - 2);
+    const dueDate = new Date(installmentStart.getTime() + progress * duration);
+    const isLast = i === numPayments - 1;
+    const amount = isLast ? remainingTotal - installmentAmount * (numPayments - 2) : installmentAmount;
+
+    await query(
+      `INSERT INTO payments (quote_id, amount, payment_date, method, notes)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [quoteId, amount, dueDate, "mensualidad", `Mensualidad ${i}/${numPayments - 1}`]
+    );
+  }
+}
+
 const router = Router();
 
 router.use(authenticate);
@@ -40,8 +94,9 @@ router.get("/:id", async (req, res) => {
     }
 
     const { rows: items } = await query("SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id", [req.params.id]);
+    const { rows: payments } = await query("SELECT * FROM payments WHERE quote_id = $1 ORDER BY payment_date", [req.params.id]);
 
-    res.json({ ...quote[0], items });
+    res.json({ ...quote[0], items, payments });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -96,8 +151,11 @@ router.post("/", authorize("administrador"), ...quoteRules, async (req, res) => 
       );
     }
 
+    await generatePaymentPlan(quoteId, total, eventId);
+
     const { rows: fullItems } = await query("SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY is_supplier_cost, id", [quoteId]);
-    res.status(201).json({ ...quote[0], items: fullItems });
+    const { rows: payments } = await query("SELECT * FROM payments WHERE quote_id = $1 ORDER BY payment_date", [quoteId]);
+    res.status(201).json({ ...quote[0], items: fullItems, payments });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -186,8 +244,12 @@ router.put("/:id", authorize("administrador"), ...quoteUpdateRules, async (req, 
       );
     }
 
+    await query("DELETE FROM payments WHERE quote_id = $1 AND method IN ('enganche', 'mensualidad')", [req.params.id]);
+    await generatePaymentPlan(req.params.id, total, eventId);
+
     const { rows: fullItems } = await query("SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY is_supplier_cost, id", [req.params.id]);
-    res.json({ ...quote[0], items: fullItems });
+    const { rows: payments } = await query("SELECT * FROM payments WHERE quote_id = $1 ORDER BY payment_date", [req.params.id]);
+    res.json({ ...quote[0], items: fullItems, payments });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
