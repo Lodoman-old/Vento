@@ -540,25 +540,39 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
                     icon: const Icon(Icons.add, size: 16),
                     label: const Text('Pago', style: TextStyle(fontSize: 12)),
                     onPressed: () async {
-                      final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => PaymentFormScreen(quoteId: q.id)));
+                      final planned = q.payments.where((p) => p.method == 'enganche' || p.method == 'mensualidad').toList();
+                      final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => PaymentFormScreen(quoteId: q.id, plannedPayments: planned)));
                       if (result == true) _load();
                     },
                   ),
                 ]),
                 if (q.payments.isEmpty)
                   const Text('Sin pagos registrados', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                ...q.payments.map((p) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(children: [
-                    Expanded(child: Text(p.method ?? '', style: TextStyle(fontSize: 12, color: Colors.grey.shade600))),
-                    Text('\$${p.amount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                  ]),
-                )),
+                ...q.payments.map((p) {
+                  final isPlanned = p.method == 'enganche' || p.method == 'mensualidad';
+                  final paid = p.paidAmount ?? 0;
+                  final rest = p.amount - paid;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(children: [
+                      Expanded(
+                        child: Row(children: [
+                          Text(p.notes ?? p.method ?? '', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                          if (isPlanned && paid > 0)
+                            Text(' (\$${paid.toStringAsFixed(2)} pagado)', style: TextStyle(fontSize: 11, color: Colors.green.shade600)),
+                        ]),
+                      ),
+                      Text('\$${p.amount.toStringAsFixed(2)}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isPlanned && rest <= 0 ? Colors.green.shade700 : null)),
+                    ]),
+                  );
+                }),
                 if (q.payments.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: Text('Total pagado: \$${q.payments.fold(0.0, (sum, p) => sum + p.amount).toStringAsFixed(2)}',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.green.shade700)),
+                    child: Text(
+                      'Total pagado: \$${q.payments.where((p) => p.method != 'enganche' && p.method != 'mensualidad').fold(0.0, (sum, p) => sum + p.amount).toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.green.shade700),
+                    ),
                   ),
               ],
             ),

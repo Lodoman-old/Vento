@@ -4,8 +4,9 @@ class Payment {
   final String? method;
   final String? reference;
   final String? notes;
+  final double? paidAmount;
 
-  Payment({required this.id, required this.amount, this.method, this.reference, this.notes});
+  Payment({required this.id, required this.amount, this.method, this.reference, this.notes, this.paidAmount});
 
   factory Payment.fromJson(Map<String, dynamic> json) {
     return Payment(
@@ -14,6 +15,7 @@ class Payment {
       method: json['method'],
       reference: json['reference'],
       notes: json['notes'],
+      paidAmount: double.tryParse(json['paid_amount']?.toString() ?? ''),
     );
   }
 }

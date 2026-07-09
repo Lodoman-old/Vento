@@ -72,6 +72,8 @@ async function start() {
   await query("ALTER TABLE quote_items ADD COLUMN IF NOT EXISTS needs_return BOOLEAN DEFAULT false");
   await query("ALTER TABLE catalog_items ADD COLUMN IF NOT EXISTS needs_return BOOLEAN DEFAULT false");
   await query("UPDATE catalog_items SET needs_return = true WHERE LOWER(category) IN ('loza', 'sillas', 'mesas', 'cubiertos') OR LOWER(name) IN ('loza', 'sillas', 'mesas', 'cubiertos') OR LOWER(category) LIKE '%loza%' OR LOWER(category) LIKE '%silla%' OR LOWER(category) LIKE '%mesa%' OR LOWER(category) LIKE '%cubiert%'");
+  await query("ALTER TABLE payments ADD COLUMN IF NOT EXISTS paid_amount DECIMAL(12,2) DEFAULT 0");
+  await query("ALTER TABLE payments ADD COLUMN IF NOT EXISTS applied_to UUID REFERENCES payments(id)");
   httpServer.listen(PORT, () => {
     console.log(`[vento-api] corriendo en http://localhost:${PORT}`);
   });

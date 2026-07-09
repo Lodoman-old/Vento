@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import '../models/quote.dart';
 import '../services/api_service.dart';
 
 class PaymentFormScreen extends StatefulWidget {
   final String quoteId;
-  const PaymentFormScreen({super.key, required this.quoteId});
+  final List<Payment> plannedPayments;
+  const PaymentFormScreen({super.key, required this.quoteId, this.plannedPayments = const []});
 
   @override
   State<PaymentFormScreen> createState() => _PaymentFormScreenState();
@@ -14,6 +16,7 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
   final _refCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
   String _method = 'efectivo';
+  String _appliedTo = '';
   bool _saving = false;
 
   Future<void> _save() async {
@@ -24,13 +27,15 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
     }
     setState(() => _saving = true);
     try {
-      await ApiService().post('/payments', body: {
+      final body = {
         'quote_id': widget.quoteId,
         'amount': amount,
         'method': _method,
         'reference': _refCtrl.text.trim().isEmpty ? null : _refCtrl.text.trim(),
         'notes': _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
-      });
+      };
+      if (_appliedTo.isNotEmpty) body['applied_to'] = _appliedTo;
+      await ApiService().post('/payments', body: body);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')));
@@ -49,11 +54,28 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final realPlanned = widget.plannedPayments.where((p) => (p.paidAmount ?? 0) < p.amount).toList();
     return Scaffold(
       appBar: AppBar(title: const Text('Registrar pago')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(children: [
+          DropdownButtonFormField<String>(
+            value: _appliedTo,
+            decoration: const InputDecoration(labelText: 'Aplicar a', border: OutlineInputBorder()),
+            items: [
+              const DropdownMenuItem(value: '', child: Text('Pago especial (sin plan)')),
+              ...realPlanned.map((p) {
+                final rest = p.amount - (p.paidAmount ?? 0);
+                return DropdownMenuItem(
+                  value: p.id,
+                  child: Text('${p.notes ?? p.method ?? ''} — \$${p.amount.toStringAsFixed(2)} (restan \$${rest.toStringAsFixed(2)})', style: const TextStyle(fontSize: 13)),
+                );
+              }),
+            ],
+            onChanged: (v) => setState(() => _appliedTo = v!),
+          ),
+          const SizedBox(height: 12),
           TextField(controller: _amountCtrl, decoration: const InputDecoration(labelText: 'Monto', border: OutlineInputBorder()), keyboardType: TextInputType.number),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(

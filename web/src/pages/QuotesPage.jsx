@@ -656,7 +656,7 @@ function QuoteDetail({ quoteId }) {
   const [data, setData] = useState(null);
   const [payments, setPayments] = useState([]);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
-  const [payForm, setPayForm] = useState({ amount: "", method: "efectivo", reference: "", notes: "" });
+  const [payForm, setPayForm] = useState({ amount: "", method: "efectivo", reference: "", notes: "", applied_to: "" });
   const { user } = useAuth();
   const toast = useToast();
   useEffect(() => {
@@ -666,16 +666,19 @@ function QuoteDetail({ quoteId }) {
 
   if (!data) return <p className="text-xs text-slate-400">Cargando...</p>;
 
-  const paidTotal = payments.reduce((s, p) => s + Number(p.amount), 0);
+  const plannedPayments = (data.payments || []).filter(p => p.method === "enganche" || p.method === "mensualidad");
+  const paidTotal = payments.reduce((s, p) => s + (p.method === "enganche" || p.method === "mensualidad" ? 0 : Number(p.amount)), 0);
   const balance = Number(data.total) - paidTotal;
 
   async function addPayment(e) {
     e.preventDefault();
     try {
-      const res = await api.post("/payments", { quote_id: quoteId, amount: Number(payForm.amount), method: payForm.method, reference: payForm.reference, notes: payForm.notes });
+      const payload = { quote_id: quoteId, amount: Number(payForm.amount), method: payForm.method, reference: payForm.reference, notes: payForm.notes };
+      if (payForm.applied_to) payload.applied_to = payForm.applied_to;
+      const res = await api.post("/payments", payload);
       setPayments([res, ...payments]);
       setShowPaymentForm(false);
-      setPayForm({ amount: "", method: "efectivo", reference: "", notes: "" });
+      setPayForm({ amount: "", method: "efectivo", reference: "", notes: "", applied_to: "" });
       toast("Pago registrado");
     } catch (err) { toast(err.message, "error"); }
   }
@@ -743,6 +746,8 @@ function QuoteDetail({ quoteId }) {
           <div className="space-y-1 mb-2">
             {data.payments.map((p, i) => {
               const isPlanned = p.method === "enganche" || p.method === "mensualidad";
+              const paid = Number(p.paid_amount || 0);
+              const rest = Number(p.amount) - paid;
               return (
                 <div key={p.id} className="flex items-center justify-between bg-white rounded px-3 py-1.5 border border-slate-100 text-xs">
                   <div className="flex items-center gap-3">
@@ -750,10 +755,13 @@ function QuoteDetail({ quoteId }) {
                       ${Number(p.amount).toLocaleString()}
                     </span>
                     <span className="text-slate-400">{p.notes || p.method}</span>
+                    {isPlanned && paid > 0 && (
+                      <span className="text-green-600 font-medium">Pagado: ${paid.toLocaleString()}</span>
+                    )}
                     <span className="text-slate-400">{new Date(p.payment_date).toLocaleDateString("es-MX")}</span>
                   </div>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${isPlanned ? "bg-slate-100 text-slate-400" : "bg-green-100 text-green-700"}`}>
-                    {isPlanned ? "Pendiente" : "Pagado"}
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${isPlanned ? (rest <= 0 ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-400") : "bg-green-100 text-green-700"}`}>
+                    {isPlanned ? (rest <= 0 ? "Pagado" : "Pendiente") : "Pagado"}
                   </span>
                 </div>
               );
@@ -788,6 +796,19 @@ function QuoteDetail({ quoteId }) {
 
         {showPaymentForm && (
           <form onSubmit={addPayment} className="flex flex-wrap gap-2 mb-3 p-3 bg-slate-50 rounded-lg text-xs">
+            <select value={payForm.applied_to} onChange={(e) => setPayForm({ ...payForm, applied_to: e.target.value })}
+              className="px-2 py-1.5 border border-slate-200 rounded min-w-[180px]">
+              <option value="">Pago especial (sin plan)</option>
+              {plannedPayments.map((p) => {
+                const paid = Number(p.paid_amount || 0);
+                const rest = Number(p.amount) - paid;
+                return (
+                  <option key={p.id} value={p.id}>
+                    {p.notes || p.method} — ${Number(p.amount).toLocaleString()} {rest > 0 ? `(restan $${rest.toLocaleString()})` : "(pagado)"}
+                  </option>
+                );
+              })}
+            </select>
             <input type="number" step="0.01" value={payForm.amount} onChange={(e) => setPayForm({ ...payForm, amount: e.target.value })}
               className="w-24 px-2 py-1.5 border border-slate-200 rounded" placeholder="Monto" required />
             <select value={payForm.method} onChange={(e) => setPayForm({ ...payForm, method: e.target.value })}
