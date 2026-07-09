@@ -26,7 +26,7 @@ export default function EventDetailPage() {
   const [inventory, setInventory] = useState([]);
   const [loadingInventory, setLoadingInventory] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
-  const [editForm, setEditForm] = useState({ name: "", date: "", venue: "", description: "", total_budget: "" });
+  const [editForm, setEditForm] = useState({ name: "", date: "", venue: "", description: "", total_budget: "", status: "" });
   const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => {
@@ -204,6 +204,7 @@ setLoading(false);
                     venue: event.venue || "",
                     description: event.description || "",
                     total_budget: event.total_budget?.toString() || "",
+                    status: event.status || "borrador",
                   });
                   setShowEditForm(true);
                 }}
@@ -442,7 +443,7 @@ setLoading(false);
             e.preventDefault();
             setEditSaving(true);
             try {
-              const payload = { ...editForm, total_budget: editForm.total_budget ? Number(editForm.total_budget) : 0 };
+              const payload = { ...editForm, total_budget: editForm.total_budget ? Number(editForm.total_budget) : 0, status: editForm.status };
               const updated = await api.put(`/events/${id}`, payload);
               setEvent(updated);
               setShowEditForm(false);
@@ -472,10 +473,22 @@ setLoading(false);
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" placeholder="0" />
               </div>
             </div>
-            <div>
-              <label className="text-sm text-slate-500 block mb-1">Lugar</label>
-              <input value={editForm.venue} onChange={(e) => setEditForm({ ...editForm, venue: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm text-slate-500 block mb-1">Lugar</label>
+                <input value={editForm.venue} onChange={(e) => setEditForm({ ...editForm, venue: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" />
+              </div>
+              <div>
+                <label className="text-sm text-slate-500 block mb-1">Estado</label>
+                <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan bg-white">
+                  <option value="borrador">Borrador</option>
+                  <option value="activo">Activo</option>
+                  <option value="completado">Completado</option>
+                  <option value="cancelado">Cancelado</option>
+                </select>
+              </div>
             </div>
             <div>
               <label className="text-sm text-slate-500 block mb-1">Descripción</label>
