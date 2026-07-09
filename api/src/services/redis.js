@@ -43,23 +43,43 @@ export function publishToRedis(event, room, data) {
 
 // Escuchar NOTIFY de PostgreSQL y reenviar a Socket.io
 export async function listenPgNotify(io) {
-  const client = await (await import("./db.js")).getPool().connect();
-  await client.query("LISTEN agenda_channel");
-  await client.query("LISTEN supplier_channel");
-  console.log("[pg] escuchando canales: agenda_channel, supplier_channel");
-
-  client.on("notification", (msg) => {
-    const channel = msg.channel;
+  let client;
+  async function connect() {
     try {
-      const payload = JSON.parse(msg.payload);
-      const socketEvent = channel === "agenda_channel" ? "agenda:updated" : "supplier:updated";
-      if (payload.event_id) {
-        io.to(`event:${payload.event_id}`).emit(socketEvent, payload);
-      }
-    } catch {
-      // ignore parse errors
+      if (client) { try { await client.release(); } catch {} }
+      client = await (await import("./db.js")).getPool().connect();
+      await client.query("LISTEN agenda_channel");
+      await client.query("LISTEN supplier_channel");
+      console.log("[pg] escuchando canales: agenda_channel, supplier_channel");
+
+      client.on("notification", (msg) => {
+        const channel = msg.channel;
+        try {
+          const payload = JSON.parse(msg.payload);
+          const socketEvent = channel === "agenda_channel" ? "agenda:updated" : "supplier:updated";
+          if (payload.event_id) {
+            io.to(`event:${payload.event_id}`).emit(socketEvent, payload);
+          }
+        } catch {
+          // ignore parse errors
+        }
+      });
+
+      client.on("error", (err) => {
+        console.error("[pg] error en notify client, reconectando:", err.message);
+        setTimeout(connect, 3000);
+      });
+
+      client.on("end", () => {
+        console.log("[pg] notify client disconnected, reconectando en 3s...");
+        setTimeout(connect, 3000);
+      });
+    } catch (err) {
+      console.error("[pg] error al conectar notify client, reintentando en 3s:", err.message);
+      setTimeout(connect, 3000);
     }
-  });
+  }
+  await connect();
 }
 
 export function getSubscriber() {
