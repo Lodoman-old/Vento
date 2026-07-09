@@ -209,19 +209,19 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> with SingleTickerProv
     // Try to get/create client access credentials
     String portalInfo = '';
     try {
-      final clientAccess = await ApiService().post('/events/${widget.eventId}/client-access');
-      if (clientAccess is Map && clientAccess['username'] != null) {
+      final existing = await ApiService().get('/events/${widget.eventId}/client-access');
+      if (existing is Map && existing['username'] != null) {
         final base = ApiService().baseUrl.replaceAll(RegExp(r':\d+$'), '');
         final portalUrl = '$base:5173/portal';
-        portalInfo = '\n\nAccede a tu portal:\n$portalUrl\nUsuario: ${clientAccess['username']}\nContrase\u00f1a: ${clientAccess['password']}';
+        portalInfo = '\n\nAccede a tu portal:\n$portalUrl\nUsuario: ${existing['username']}\nContrase\u00f1a: ${existing['password']}';
       }
     } catch (_) {
       try {
-        final clientAccess = await ApiService().get('/events/${widget.eventId}/client-access');
-        if (clientAccess is Map && clientAccess['username'] != null) {
+        final created = await ApiService().post('/events/${widget.eventId}/client-access');
+        if (created is Map && created['username'] != null) {
           final base = ApiService().baseUrl.replaceAll(RegExp(r':\d+$'), '');
           final portalUrl = '$base:5173/portal';
-          portalInfo = '\n\nAccede a tu portal:\n$portalUrl\nUsuario: ${clientAccess['username']}\nContrase\u00f1a: ${clientAccess['password']}';
+          portalInfo = '\n\nAccede a tu portal:\n$portalUrl\nUsuario: ${created['username']}\nContrase\u00f1a: ${created['password']}';
         }
       } catch (_) {}
     }
@@ -432,7 +432,7 @@ class _QuoteItem {
 
   _QuoteItem({required this.name, required this.unitPrice, int initialQty = 1}) : qtyCtrl = TextEditingController(text: initialQty.toString());
 
-  double get quantity => double.tryParse(qtyCtrl.text) ?? 0;
+  int get quantity => int.tryParse(qtyCtrl.text) ?? 0;
   double get subtotal => quantity * unitPrice;
 
   void dispose() => qtyCtrl.dispose();

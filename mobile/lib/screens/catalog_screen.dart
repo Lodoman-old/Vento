@@ -117,6 +117,25 @@ class _CatalogScreenState extends State<CatalogScreen> {
     );
   }
 
+  void _showImagePreview(String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: url.endsWith('.svg')
+              ? SvgPicture.network(ApiService().imageUrl(url), width: double.infinity, height: double.infinity, fit: BoxFit.contain, placeholderBuilder: (_) => const Center(child: CircularProgressIndicator()))
+              : Image.network(ApiService().imageUrl(url), width: double.infinity, height: double.infinity, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Center(child: Text('Error al cargar imagen'))),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _itemCard(Map item) {
     final active = item['is_active'] != false;
     final imageUrl = item['image_url'] as String?;
@@ -124,11 +143,13 @@ class _CatalogScreenState extends State<CatalogScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         leading: imageUrl != null
-          ? ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: imageUrl.endsWith('.svg')
-                ? SvgPicture.network(ApiService().imageUrl(imageUrl), width: 44, height: 44, fit: BoxFit.cover, placeholderBuilder: (_) => const Icon(Icons.image, color: Colors.grey))
-                : Image.network(ApiService().imageUrl(imageUrl), width: 44, height: 44, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image, color: Colors.grey)))
+          ? GestureDetector(
+              onTap: () => _showImagePreview(imageUrl),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: imageUrl.endsWith('.svg')
+                  ? SvgPicture.network(ApiService().imageUrl(imageUrl), width: 44, height: 44, fit: BoxFit.cover, placeholderBuilder: (_) => const Icon(Icons.image, color: Colors.grey))
+                  : Image.network(ApiService().imageUrl(imageUrl), width: 44, height: 44, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image, color: Colors.grey))))
           : CircleAvatar(backgroundColor: Colors.grey.shade100, child: Icon(Icons.inventory, color: Colors.grey.shade600)),
         title: Text(item['name'] ?? '', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: active ? null : Colors.grey)),
         subtitle: Text('${item['unit_type'] ?? ''}${item['unit_price'] != null ? ' — \$${item['unit_price']}' : ''}', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),

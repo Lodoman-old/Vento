@@ -23,6 +23,8 @@ export default function EventDetailPage() {
   const [checklist, setChecklist] = useState([]);
   const [newCheckItem, setNewCheckItem] = useState("");
   const [generatingReport, setGeneratingReport] = useState(false);
+  const [inventory, setInventory] = useState([]);
+  const [loadingInventory, setLoadingInventory] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", date: "", venue: "", description: "", total_budget: "" });
   const [editSaving, setEditSaving] = useState(false);
@@ -44,11 +46,18 @@ export default function EventDetailPage() {
       if (quo.status === "fulfilled") setQuotes(quo.value);
       if (ca.status === "fulfilled") setClientAccess(ca.value);
       if (cl.status === "fulfilled") setChecklist(cl.value);
-      setLoading(false);
+setLoading(false);
     }
+
     load();
   }, [id, user?.role]);
 
+  useEffect(() => {
+    if (tab === "inventory") {
+      setLoadingInventory(true);
+      api.get(`/events/${id}/inventory`).then(setInventory).catch(() => {}).finally(() => setLoadingInventory(false));
+    }
+  }, [tab, id]);
   async function generateAccess() {
     setGenerating(true);
     try {
@@ -170,6 +179,7 @@ export default function EventDetailPage() {
     { id: "checklist", label: `Checklist (${checklist.filter((c) => c.is_completed).length}/${checklist.length})` },
     { id: "suppliers", label: `Proveedores (${suppliers.length})` },
     { id: "quotes", label: `Cotizaciones (${quotes.length})`, adminOnly: true },
+    { id: "inventory", label: "Inventario", adminOnly: true },
   ];
   const tabs = allTabs.filter((t) => !t.adminOnly || user?.role === "administrador");
 
@@ -367,7 +377,7 @@ export default function EventDetailPage() {
             {checklist.map((item) => (
               <div key={item.id} className="flex items-center gap-3 bg-white rounded-lg px-4 py-2.5 border text-sm">
                 <button onClick={async () => {
-                  const res = await api.patch(`/checklist/${item.id}`, { isCompleted: !item.is_completed });
+                  const res = await api.patch(`/checklist/${item.id}`, { is_completed: !item.is_completed });
                   setChecklist(checklist.map((c) => c.id === item.id ? res : c));
                 }}
                   className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition ${
@@ -483,6 +493,41 @@ export default function EventDetailPage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {tab === "inventory" && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-slate-500">Inventario para montaje</p>
+          </div>
+          {loadingInventory ? (
+            <p className="text-sm text-slate-400">Calculando inventario...</p>
+          ) : inventory.length === 0 ? (
+            <div className="bg-white rounded-xl p-8 text-center border border-slate-200">
+              <p className="text-slate-400 mb-2">No hay cotización aceptada</p>
+              <p className="text-xs text-slate-300">Acepta una cotización para generar el inventario</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {inventory.map((cat) => (
+                <div key={cat.category} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                    <h3 className="font-semibold text-sm">{cat.category}</h3>
+                    <span className="text-xs bg-vento-cyan/10 text-vento-cyan px-2 py-0.5 rounded-full font-medium">Total: {cat.total}</span>
+                  </div>
+                  <div className="px-4 py-2 space-y-1">
+                    {cat.items.map((item, i) => (
+                      <div key={i} className="flex items-center justify-between py-1 text-sm">
+                        <span className="text-slate-700">{item.name}</span>
+                        <span className="font-medium text-vento-navy">{item.quantity} pz</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

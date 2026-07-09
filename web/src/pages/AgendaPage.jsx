@@ -55,7 +55,8 @@ export default function AgendaPage() {
 
   async function toggleComplete(item) {
     try {
-      await api.patch(`/agenda/${item.id}`, { is_completed: !item.is_completed });
+      const updated = await api.patch(`/agenda/${item.id}`, { is_completed: !item.is_completed });
+      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, ...updated } : i));
       toast(item.is_completed ? "Tarea desmarcada" : "Tarea completada");
     } catch (err) { toast(err.message, "error"); }
   }

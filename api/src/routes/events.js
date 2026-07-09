@@ -358,4 +358,49 @@ router.post("/:id/reset-client-password", authorize("administrador"), async (req
   }
 });
 
+// GET /api/events/:id/inventory — calcula el inventario necesario desde la cotización aceptada
+const INVENTORY_CATEGORIES = ['sillas', 'mesas', 'manteleria', 'loza'];
+const INVENTORY_ITEM_MAP = {
+  'sillas': 'Sillas',
+  'mesas': 'Mesas',
+  'manteleria': 'Mantelería',
+  'loza': 'Vajilla y cubiertos',
+};
+
+router.get("/:id/inventory", async (req, res) => {
+  try {
+    // Get the accepted quote with items for this event
+    const { rows: quotes } = await query(
+      "SELECT id FROM quotes WHERE event_id = $1 AND status = 'aceptado' ORDER BY created_at DESC LIMIT 1",
+      [req.params.id]
+    );
+    if (quotes.length === 0) return res.json([]);
+
+    const { rows: items } = await query(
+      "SELECT item_name, quantity FROM quote_items WHERE quote_id = $1 AND is_supplier_cost = false ORDER BY id",
+      [quotes[0].id]
+    );
+
+    // Match items to inventory categories by keyword
+    const inventory = [];
+    for (const cat of INVENTORY_CATEGORIES) {
+      const catItems = items.filter(i =>
+        i.item_name.toLowerCase().includes(INVENTORY_ITEM_MAP[cat].toLowerCase().slice(0, -1)) ||
+        i.item_name.toLowerCase().includes(cat.slice(0, -1))
+      );
+      if (catItems.length > 0) {
+        inventory.push({
+          category: INVENTORY_ITEM_MAP[cat],
+          items: catItems.map(i => ({ name: i.item_name, quantity: Number(i.quantity) })),
+          total: catItems.reduce((s, i) => s + Number(i.quantity), 0),
+        });
+      }
+    }
+
+    res.json(inventory);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

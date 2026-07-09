@@ -64,7 +64,7 @@ class _CatalogFormScreenState extends State<CatalogFormScreen> {
         'unit_price': double.tryParse(_priceCtrl.text.trim()) ?? 0,
         'description': _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
         'stock_available': int.tryParse(_stockCtrl.text.trim()) ?? 0,
-        if (uploadedUrl != null && _selectedImage != null) 'image_url': uploadedUrl,
+        if (uploadedUrl != null) 'image_url': uploadedUrl,
       };
       if (widget.item != null) {
         await ApiService().put('/catalog/${widget.item!['id']}', body: body);

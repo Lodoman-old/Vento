@@ -22,6 +22,7 @@ export default function CatalogPage() {
   const [uploading, setUploading] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [previewImg, setPreviewImg] = useState(null);
   const fileRef = useRef(null);
 
   async function load() {
@@ -239,7 +240,8 @@ export default function CatalogPage() {
                 item.is_active ? "border-slate-200" : "border-red-200 bg-red-50/30"
               }`}>
                 {item.image_url ? (
-                  <img src={imgSrc(item.image_url)} alt={item.name} className="w-full h-32 object-cover"
+                  <img src={imgSrc(item.image_url)} alt={item.name} className="w-full h-32 object-cover cursor-pointer"
+                    onClick={() => setPreviewImg(item.image_url)}
                     onError={(e) => { e.target.style.display = "none"; }} />
                 ) : (
                   <div className="w-full h-32 bg-slate-100 flex items-center justify-center text-slate-300 text-xs">Sin foto</div>
@@ -274,6 +276,16 @@ export default function CatalogPage() {
           </div>
         </div>
       ))}
+
+      {previewImg && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 animate-fade-in" onClick={() => setPreviewImg(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="relative max-w-2xl max-h-[90vh] mx-4">
+            <img src={imgSrc(previewImg)} alt="preview" className="w-full h-auto max-h-[85vh] object-contain rounded-xl shadow-2xl" />
+            <button onClick={() => setPreviewImg(null)}
+              className="absolute -top-3 -right-3 bg-white text-black w-8 h-8 rounded-full shadow-lg flex items-center justify-center text-lg hover:bg-slate-100 transition">✕</button>
+          </div>
+        </div>
+      )}
 
       {items.length === 0 && (
         <div className="bg-white rounded-xl p-8 text-center border border-slate-200">

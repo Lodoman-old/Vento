@@ -27,13 +27,18 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
   List<Supplier> _suppliers = [];
   List<Quote> _quotes = [];
   bool _loading = true;
+  List<Map> _inventory = [];
+  bool _loadingInventory = false;
   String? _error;
   Map<String, dynamic>? _eventData;
 
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl = TabController(length: 4, vsync: this);
+    _tabCtrl.addListener(() {
+      if (_tabCtrl.index == 3 && _inventory.isEmpty && !_loadingInventory) _loadInventory();
+    });
     if (widget.isLoading) { _fetchEvent(); } else { _load(); }
     _scheduleReminders();
   }
@@ -73,6 +78,15 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
       _error = e.toString().replaceFirst('Exception: ', '');
     }
     if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _loadInventory() async {
+    setState(() => _loadingInventory = true);
+    try {
+      final data = await ApiService().get('/events/${widget.event.id}/inventory');
+      _inventory = data is List ? data.cast<Map>() : [];
+    } catch (_) {}
+    if (mounted) setState(() => _loadingInventory = false);
   }
 
   void _scheduleReminders() {
@@ -210,6 +224,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
                   Tab(icon: Icon(Icons.checklist, size: 18), text: 'Agenda'),
                   Tab(icon: Icon(Icons.business, size: 18), text: 'Proveedores'),
                   Tab(icon: Icon(Icons.description, size: 18), text: 'Cotizaciones'),
+                  Tab(icon: Icon(Icons.inventory, size: 18), text: 'Inventario'),
                 ],
               ),
               Expanded(
@@ -223,6 +238,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
                     final result = await Navigator.pushNamed(context, '/quote/new', arguments: widget.event.id);
                     if (result == true) _load();
                   }),
+                  _inventoryTab(),
                 ]),
               ),
             ]),
@@ -343,8 +359,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
 
   Future<void> _reportArrival(Supplier s) async {
     try {
-      final now = DateFormat('HH:mm').format(DateTime.now());
-      await ApiService().patch('/event-suppliers/${s.id}', body: {'arrival_time': now});
+      final now = DateTime.now().toUtc().toIso8601String();
+      await ApiService().patch('/event-suppliers/${s.id}', body: {'actual_arrival_time': now});
       _load();
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')));
@@ -629,9 +645,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
             headers: ['Item', 'Cant', 'P/Unit', 'Subtotal'],
             data: items.map((i) => [
               i['item_name'] ?? i['itemName'] ?? '',
-              '${(i['quantity'] ?? 1).toStringAsFixed(0)}',
+              '${int.tryParse(i['quantity']?.toString() ?? '1') ?? 1}',
               '\$${fm.format(double.tryParse(i['unit_price']?.toString() ?? i['unitPrice']?.toString() ?? '0') ?? 0)}',
-              '\$${fm.format((i['subtotal'] ?? 0).toDouble())}',
+              '\$${fm.format(double.tryParse(i['subtotal']?.toString() ?? '0') ?? 0)}',
             ]).toList(),
           ),
           pw.SizedBox(height: 10),
@@ -664,21 +680,21 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
 
       String portalInfo = '';
       try {
-        final clientAccess = await ApiService().post('/events/${widget.event.id}/client-access');
-        if (clientAccess is Map && clientAccess['username'] != null) {
+        final existing = await ApiService().get('/events/${widget.event.id}/client-access');
+        if (existing is Map && existing['username'] != null) {
           final portalUrl = ApiService().baseUrl.contains('onrender.com')
               ? 'https://vento-web.onrender.com/portal'
               : '${ApiService().baseUrl.replaceAll(RegExp(r':\d+$'), '')}:5173/portal';
-          portalInfo = '\n\nAccede a tu portal:\n$portalUrl\nUsuario: ${clientAccess['username']}\nContraseña: ${clientAccess['password']}';
+          portalInfo = '\n\nAccede a tu portal:\n$portalUrl\nUsuario: ${existing['username']}\nContraseña: ${existing['password']}';
         }
       } catch (_) {
         try {
-          final clientAccess = await ApiService().get('/events/${widget.event.id}/client-access');
-          if (clientAccess is Map && clientAccess['username'] != null) {
+          final created = await ApiService().post('/events/${widget.event.id}/client-access');
+          if (created is Map && created['username'] != null) {
             final portalUrl = ApiService().baseUrl.contains('onrender.com')
                 ? 'https://vento-web.onrender.com/portal'
                 : '${ApiService().baseUrl.replaceAll(RegExp(r':\d+$'), '')}:5173/portal';
-            portalInfo = '\n\nAccede a tu portal:\n$portalUrl\nUsuario: ${clientAccess['username']}\nContraseña: ${clientAccess['password']}';
+            portalInfo = '\n\nAccede a tu portal:\n$portalUrl\nUsuario: ${created['username']}\nContraseña: ${created['password']}';
           }
         } catch (_) {}
       }
@@ -689,7 +705,56 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
           '$portalInfo';
       await Share.share(msg);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')));
     }
+  }
+
+  Widget _inventoryTab() {
+    if (_loadingInventory) return const Center(child: CircularProgressIndicator());
+    if (_inventory.isEmpty) {
+      return ListView(children: [
+        const SizedBox(height: 100),
+        Center(child: Column(children: [
+          Icon(Icons.inventory, size: 48, color: Colors.grey.shade200),
+          const SizedBox(height: 8),
+          const Text('No hay cotización aceptada', style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 4),
+          Text('Acepta una cotización para generar el inventario', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+        ])),
+      ]);
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: _inventory.length,
+      itemBuilder: (_, i) {
+        final cat = _inventory[i];
+        final items = (cat['items'] as List?)?.cast<Map>() ?? [];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Text(cat['category'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(color: Colors.cyan.shade50, borderRadius: BorderRadius.circular(12)),
+                  child: Text('Total: ${cat['total']}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.cyan.shade800)),
+                ),
+              ]),
+              const Divider(height: 16),
+              ...items.map((item) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Expanded(child: Text(item['name'] ?? '', style: const TextStyle(fontSize: 13))),
+                  Text('${item['quantity']} pz', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                ]),
+              )),
+            ]),
+          ),
+        );
+      },
+    );
   }
 }

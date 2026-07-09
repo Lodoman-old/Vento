@@ -353,15 +353,15 @@ export default function QuotesPage() {
       // Fetch/create client access credentials
       let portalMsg = `\n\nPortal: ${origin}/portal`;
       try {
-        const created = await api.post(`/events/${full.event_id}/client-access`);
-        if (created?.username) {
-          portalMsg = `\n\nAccede a tu portal:\n${origin}/portal\nUsuario: ${created.username}\nContrase\u00f1a: ${created.password}`;
+        const existing = await api.get(`/events/${full.event_id}/client-access`);
+        if (existing?.username) {
+          portalMsg = `\n\nAccede a tu portal:\n${origin}/portal\nUsuario: ${existing.username}\nContrase\u00f1a: ${existing.password}`;
         }
       } catch {
         try {
-          const existing = await api.get(`/events/${full.event_id}/client-access`);
-          if (existing?.username) {
-            portalMsg = `\n\nAccede a tu portal:\n${origin}/portal\nUsuario: ${existing.username}\nContrase\u00f1a: ${existing.password}`;
+          const created = await api.post(`/events/${full.event_id}/client-access`);
+          if (created?.username) {
+            portalMsg = `\n\nAccede a tu portal:\n${origin}/portal\nUsuario: ${created.username}\nContrase\u00f1a: ${created.password}`;
           }
         } catch {}
       }

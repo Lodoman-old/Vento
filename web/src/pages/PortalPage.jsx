@@ -24,9 +24,9 @@ export default function PortalPage() {
         const evt = events[0];
         setEvent(evt);
         const [ag, sup, quo] = await Promise.allSettled([
-          api.get(`/agenda?eventId=${evt.id}`),
-          api.get(`/event-suppliers?eventId=${evt.id}`),
-          api.get(`/quotes?eventId=${evt.id}`),
+          api.get(`/agenda?event_id=${evt.id}`),
+          api.get(`/event-suppliers?event_id=${evt.id}`),
+          api.get(`/quotes?event_id=${evt.id}`),
         ]);
         if (ag.status === "fulfilled") setAgenda(ag.value);
         if (sup.status === "fulfilled") setSuppliers(sup.value);
