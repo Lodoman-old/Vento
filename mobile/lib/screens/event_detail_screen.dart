@@ -807,14 +807,14 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
               ]),
               const SizedBox(height: 8),
               Row(children: [
-                _actionBtn('Llevar', Colors.amber, llevado >= quantity, () => _inventoryMovement(name, quantity - llevado, 'llevado')),
+                _invActionBtn('Llevar', Colors.amber, llevado >= quantity, () => _inventoryMovement(name, quantity - llevado, 'llevado')),
                 const SizedBox(width: 6),
-                _actionBtn('Regresar', Colors.green, llevado <= 0, () => _inventoryMovement(name, llevado, 'regresado')),
+                _invActionBtn('Regresar', Colors.green, llevado <= 0, () => _inventoryMovement(name, llevado, 'regresado')),
                 if (quoteItemId != null && isAdmin) ...[
                   const Spacer(),
-                  _actionBtn('Editar', Colors.blue, false, () => _editInventoryItem(quoteItemId, name, quantity)),
+                  _invActionBtn('Editar', Colors.blue, false, () => _editInventoryItem(quoteItemId, name, quantity)),
                   const SizedBox(width: 6),
-                  _actionBtn('Eliminar', Colors.red, false, () => _deleteInventoryItem(quoteItemId, name)),
+                  _invActionBtn('Eliminar', Colors.red, false, () => _deleteInventoryItem(quoteItemId, name)),
                 ],
               ]),
             ]),
@@ -824,7 +824,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
     );
   }
 
-  Widget _actionBtn(String label, Color color, bool disabled, VoidCallback onPressed) {
+  Widget _invActionBtn(String label, Color color, bool disabled, VoidCallback onPressed) {
     return SizedBox(
       height: 28,
       child: TextButton(
@@ -872,7 +872,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
     );
     if (result == null) return;
     try {
-      await ApiService().put('/quote-items/$quoteItemId', body: result);
+      await ApiService().put('/quote-items/$quoteItemId', body: Map<String, dynamic>.from(result));
       _loadInventory();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Producto actualizado')));
     } catch (e) {
