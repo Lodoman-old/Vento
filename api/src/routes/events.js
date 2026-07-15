@@ -222,7 +222,7 @@ router.delete("/:id", authorize("administrador"), async (req, res) => {
 });
 
 // GET /api/events/:id/staff — staff asignado al evento
-router.get("/:id/staff", authorize("administrador"), async (req, res) => {
+router.get("/:id/staff", async (req, res) => {
   try {
     const { rows } = await query(
       `SELECT u.id, u.display_name, u.email, u.role, u.phone FROM users u
