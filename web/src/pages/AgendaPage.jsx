@@ -31,7 +31,7 @@ export default function AgendaPage() {
   useEffect(() => {
     Promise.all([
       loadAgenda(),
-      api.get(`/events/${id}/staff`).then(setStaff).catch(() => {}),
+      api.get('/users').then(setStaff).catch(() => api.get(`/events/${id}/staff`).then(setStaff).catch(() => {})),
     ]).finally(() => setLoading(false));
 
     const socket = connectSocket(user?.id);
