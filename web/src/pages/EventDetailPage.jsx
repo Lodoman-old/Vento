@@ -171,8 +171,10 @@ setLoading(false);
   const completedAgenda = agenda.filter((a) => a.is_completed).length;
   const hiredSuppliers = suppliers.filter((s) => s.contract_status === "contratado").length;
   const budgetUsed = suppliers.reduce((sum, s) => sum + Number(s.budget_amount || 0), 0);
+  const acceptedQuote = quotes.find((q) => q.status === "aceptado");
+  const assignedTotal = acceptedQuote ? Number(acceptedQuote.total) : budgetUsed;
   const budgetPct = event.total_budget > 0
-    ? Math.min(100, Math.round((budgetUsed / event.total_budget) * 100))
+    ? Math.min(100, Math.round((assignedTotal / event.total_budget) * 100))
     : 0;
 
   const allTabs = [
@@ -272,7 +274,7 @@ setLoading(false);
           </div>
           <div>
             <span className="text-slate-400">Asignado:</span>
-            <span className="ml-1 font-semibold">{user?.role === "administrador" ? `$${budgetUsed.toLocaleString()}` : "—"}</span>
+            <span className="ml-1 font-semibold">{user?.role === "administrador" ? `$${assignedTotal.toLocaleString()}` : "—"}</span>
           </div>
           <div>
             <span className="text-slate-400">Uso:</span>
