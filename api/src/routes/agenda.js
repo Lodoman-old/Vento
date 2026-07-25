@@ -4,7 +4,7 @@ import { agendaRules, patchAgendaRules } from "../middleware/validate.js";
 import { query } from "../services/db.js";
 import { getIO } from "../socket.js";
 import { publishToRedis } from "../services/redis.js";
-import { createNotification, notifyAdmins } from "../services/notifications.js";
+import { createNotification, notifyAdmins, notifyStaff } from "../services/notifications.js";
 
 const router = Router();
 

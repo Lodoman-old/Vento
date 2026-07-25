@@ -120,8 +120,8 @@ export default function QuotesPage() {
   async function startEdit(quote) {
     const full = await api.get(`/quotes/${quote.id}`);
     setForm({
-      clientName: full.client_name || "",
-      clientPhone: full.client_phone || "",
+      client_name: full.client_name || "",
+      client_phone: full.client_phone || "",
       selectedItems: (full.items || [])
         .filter((i) => !i.is_supplier_cost)
         .map((i) => ({

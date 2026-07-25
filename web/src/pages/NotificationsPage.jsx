@@ -21,7 +21,7 @@ export default function NotificationsPage() {
 
   const load = useCallback(async () => {
     try {
-      const qs = eventFilter ? `?eventId=${eventFilter}` : "";
+      const qs = eventFilter ? `?event_id=${eventFilter}` : "";
       const data = await api.get("/notifications" + qs);
       setNotifications(data);
     } catch (err) {

@@ -97,10 +97,9 @@ setLoading(false);
   async function generateReport() {
     setGeneratingReport(true);
     try {
-      const [company, allQuotes, allPayments] = await Promise.all([
+      const [company, allQuotes] = await Promise.all([
         api.get("/settings"),
         api.get(`/quotes?event_id=${id}`),
-        api.get(`/payments?event_id=${id}`).catch(() => []),
       ]);
 
       let allPaymentsResolved = [];
@@ -117,7 +116,7 @@ setLoading(false);
       pdfMake.vfs = pdfFonts.vfs;
 
       const totalQuoted = allQuotes.reduce((s, q) => s + Number(q.total), 0);
-      const totalPaid = allPaymentsResolved.reduce((s, p) => s + Number(p.amount), 0);
+      const totalPaid = allPaymentsResolved.reduce((s, p) => s + (p.method === "enganche" || p.method === "mensualidad" ? 0 : Number(p.amount)), 0);
       const completedChecklist = checklist.filter((c) => c.is_completed).length;
       const completedAgendaCount = agenda.filter((a) => a.is_completed).length;
       const hiredSuppliersCount = suppliers.filter((s) => s.contract_status === "contratado").length;

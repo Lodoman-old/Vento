@@ -49,7 +49,7 @@ router.post("/", authorize("administrador"), async (req, res) => {
       body: `Proveedor "${catalog[0].name}" asignado al evento`,
       type: "supplier",
     });
-    await publishToRedis("supplier_channel", { event_id: eventId, supplier_id: supplierId, action: "INSERT" });
+    await publishToRedis("supplier:updated", `event:${eventId}`, { event_id: eventId, supplier_id: supplierId, action: "INSERT" });
 
     res.status(201).json({ ...es, ...catalog[0] });
   } catch (err) {
@@ -111,7 +111,7 @@ router.patch("/:id", async (req, res) => {
     }
 
     getIO().to(`event:${es.event_id}`).emit("supplier:updated", result);
-    await publishToRedis("supplier_channel", { event_id: es.event_id, supplier_id: es.supplier_id, action: "UPDATE" });
+    await publishToRedis("supplier:updated", `event:${es.event_id}`, { event_id: es.event_id, supplier_id: es.supplier_id, action: "UPDATE" });
 
     res.json(result);
   } catch (err) {
@@ -126,7 +126,7 @@ router.delete("/:id", authorize("administrador"), async (req, res) => {
     if (rows.length === 0) return res.status(404).json({ error: "No encontrado" });
 
     getIO().to(`event:${rows[0].event_id}`).emit("supplier:removed", { id: rows[0].id });
-    await publishToRedis("supplier_channel", { event_id: rows[0].event_id, supplier_id: rows[0].supplier_id, action: "DELETE" });
+    await publishToRedis("supplier:removed", `event:${rows[0].event_id}`, { event_id: rows[0].event_id, supplier_id: rows[0].supplier_id, action: "DELETE" });
 
     res.json({ ok: true });
   } catch (err) {
