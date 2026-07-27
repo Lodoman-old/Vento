@@ -3,6 +3,10 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../hooks/useAuth";
 import { fmtDateTime, fmtTime } from "../lib/format";
+import pdfMake from "pdfmake/build/pdfmake";
+import pdfFonts from "pdfmake/build/vfs_fonts";
+
+pdfMake.vfs = pdfFonts.vfs;
 import { useToast } from "../components/Toast";
 
 export default function EventDetailPage() {
@@ -110,10 +114,6 @@ setLoading(false);
         const paymentArrays = await Promise.all(paymentPromises);
         allPaymentsResolved = paymentArrays.flat();
       }
-
-      const { default: pdfMake } = await import("pdfmake/build/pdfmake");
-      const { default: pdfFonts } = await import("pdfmake/build/vfs_fonts");
-      pdfMake.vfs = pdfFonts.vfs;
 
       const totalQuoted = allQuotes.reduce((s, q) => s + Number(q.total), 0);
       const totalPaid = allPaymentsResolved.reduce((s, p) => s + (p.method === "enganche" || p.method === "mensualidad" ? 0 : Number(p.amount)), 0);

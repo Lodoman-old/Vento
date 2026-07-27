@@ -5,6 +5,10 @@ import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../components/Toast";
 import ConfirmModal from "../components/ConfirmModal";
 import { fmtDate } from "../lib/format";
+import pdfMake from "pdfmake/build/pdfmake";
+import pdfFonts from "pdfmake/build/vfs_fonts";
+
+pdfMake.vfs = pdfFonts.vfs;
 
 export default function QuotesPage() {
   const { id: eventId } = useParams();
@@ -167,10 +171,6 @@ export default function QuotesPage() {
           api.get(`/agenda?event_id=${full.event_id}`),
         ]);
       } catch {}
-
-      const { default: pdfMake } = await import("pdfmake/build/pdfmake");
-      const { default: pdfFonts } = await import("pdfmake/build/vfs_fonts");
-      pdfMake.vfs = pdfFonts.vfs;
 
       let logoImage = null;
       if (company?.logo_url) {
@@ -702,9 +702,6 @@ function QuoteDetail({ quoteId }) {
     if (!lastPaidPayment) return;
     try {
       const company = await api.get("/settings");
-      const { default: pdfMake } = await import("pdfmake/build/pdfmake");
-      const { default: pdfFonts } = await import("pdfmake/build/vfs_fonts");
-      pdfMake.vfs = pdfFonts.vfs;
 
       let logoImage = null;
       if (company?.logo_url) {
