@@ -2,25 +2,39 @@ import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { api } from "./api";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAO5JyRfYlC_GpJbUnNM5V9WzsizkscQcQ",
-  authDomain: "vento-42787.firebaseapp.com",
-  projectId: "vento-42787",
-  storageBucket: "vento-42787.firebasestorage.app",
-  messagingSenderId: "130851491683",
-  appId: "1:130851491683:web:vento",
-};
-
 const VAPID_KEY = "BLa6EFSg2A8U2ONKvpXvqpPsE5RUSDxsYqF5AEro2LjR5KAHLocZvpw_xfMYra0ZlamsrYNc08Obg9l7BIzVbIs";
 
 let messaging = null;
-let fcmApp = null;
+let configCache = null;
 
-function getFirebaseMessaging() {
-  if (messaging) return messaging;
+export async function getFirebaseConfig() {
+  if (configCache) return configCache;
   try {
-    fcmApp = initializeApp(firebaseConfig);
-    messaging = getMessaging(fcmApp);
+    const data = await api.get("/firebase-config");
+    if (data.configured) {
+      configCache = data;
+      return data;
+    }
+  } catch (err) {
+    console.warn("[fcm] no se pudo obtener config:", err.message);
+  }
+  return null;
+}
+
+export async function getFirebaseMessaging() {
+  if (messaging) return messaging;
+  const config = await getFirebaseConfig();
+  if (!config) return null;
+  try {
+    const app = initializeApp({
+      apiKey: config.apiKey,
+      authDomain: config.authDomain,
+      projectId: config.projectId,
+      storageBucket: config.storageBucket,
+      messagingSenderId: config.messagingSenderId,
+      appId: config.appId,
+    });
+    messaging = getMessaging(app);
     return messaging;
   } catch (err) {
     console.warn("[fcm] error inicializando firebase:", err.message);
@@ -35,7 +49,7 @@ export async function requestFcmToken() {
   const sw = await navigator.serviceWorker?.ready;
   if (!sw) return null;
 
-  const msg = getFirebaseMessaging();
+  const msg = await getFirebaseMessaging();
   if (!msg) return null;
 
   try {
@@ -54,9 +68,8 @@ export async function requestFcmToken() {
 }
 
 export function listenForegroundMessages(callback) {
-  const msg = getFirebaseMessaging();
-  if (!msg) return () => {};
-  return onMessage(msg, (payload) => {
+  if (!messaging) return () => {};
+  return onMessage(messaging, (payload) => {
     callback(payload);
   });
 }

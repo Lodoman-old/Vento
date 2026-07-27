@@ -215,7 +215,10 @@ function DatabaseTab({ toast }) {
 }
 
 function FirebaseTab({ toast }) {
-  const [config, setConfig] = useState({ service_account: "" });
+  const [config, setConfig] = useState({
+    service_account: "",
+    apiKey: "", authDomain: "", projectId: "", storageBucket: "", messagingSenderId: "", appId: "",
+  });
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
 
@@ -234,7 +237,7 @@ function FirebaseTab({ toast }) {
       await api.put("/settings", { firebase_config: config });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-      toast("Configuración de Firebase guardada y .env actualizado");
+      toast("Configuración de Firebase guardada");
     } catch (err) {
       toast(err.message, "error");
     }
@@ -243,27 +246,78 @@ function FirebaseTab({ toast }) {
   if (loading) return <p className="text-slate-400">Cargando...</p>;
 
   return (
-    <form onSubmit={handleSave} className="space-y-4">
-      <p className="text-sm text-slate-500 bg-blue-50 border border-blue-200 rounded-lg p-3">
-        Configura las credenciales de Firebase Admin SDK para enviar notificaciones push.
-        El valor debe ser la cuenta de servicio en formato Base64.
-      </p>
+    <form onSubmit={handleSave} className="space-y-6">
+      {/* Backend (Admin SDK) */}
       <div>
-        <label className="block text-sm font-medium mb-1">FCM_SERVICE_ACCOUNT (Base64)</label>
-        <textarea value={config.service_account} onChange={(e) => setConfig({ ...config, service_account: e.target.value })}
-          rows={6} placeholder="eyJ0eXBlIjoic2VydmljZV9hY2NvdW50IiwicHJvamVjdF9pZCI6..."
-          className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-vento-cyan font-mono text-xs" />
+        <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-3">Backend — Admin SDK (server-side)</h3>
+        <p className="text-sm text-slate-500 bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+          Credenciales para enviar notificaciones push desde el servidor.
+        </p>
+        <div>
+          <label className="block text-sm font-medium mb-1">FCM_SERVICE_ACCOUNT (Base64)</label>
+          <textarea value={config.service_account} onChange={(e) => setConfig({ ...config, service_account: e.target.value })}
+            rows={4} placeholder="eyJ0eXBlIjoic2VydmljZV9hY2NvdW50IiwicHJvamVjdF9pZCI6..."
+            className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-vento-cyan font-mono text-xs" />
+        </div>
+        <div className="text-xs text-slate-500 mt-2">
+          <p className="font-medium mb-1">Cómo obtener la cuenta de servicio:</p>
+          <ol className="list-decimal list-inside space-y-1">
+            <li>Firebase Console → Configuración del proyecto → Cuentas de servicio</li>
+            <li>Generar nueva clave privada</li>
+            <li>Descargar el JSON y convertir: <code className="bg-slate-100 px-1 rounded">cat archivo.json | base64</code></li>
+            <li>Pega el resultado arriba</li>
+          </ol>
+        </div>
       </div>
-      <div className="text-sm text-slate-500">
-        <p className="font-medium mb-1">Cómo obtener el archivo:</p>
-        <ol className="list-decimal list-inside space-y-1">
-          <li>Ve a <span className="font-medium">Firebase Console → Configuración del proyecto → Cuentas de servicio</span></li>
-          <li>Haz clic en "Generar nueva clave privada"</li>
-          <li>Descarga el archivo JSON</li>
-          <li>Conviértelo a Base64: <code className="bg-slate-100 px-1 rounded">cat archivo.json | base64</code></li>
-          <li>Pega el resultado arriba</li>
-        </ol>
+
+      <hr className="border-slate-200" />
+
+      {/* Frontend (Client SDK) */}
+      <div>
+        <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-3">Frontend — Client SDK (navegador)</h3>
+        <p className="text-sm text-slate-500 bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+          Configuración para recibir notificaciones push en el navegador. Los usuarios verán el pedido de permiso al iniciar sesión.
+        </p>
+        <p className="text-xs text-slate-500 mb-3">
+          Encuentra estos valores en <span className="font-medium">Firebase Console → Configuración del proyecto → General → Tus apps → Web app</span>.
+          Si no tienes una web app, crea una con el ícono &lt;/&gt;.
+        </p>
+        <div>
+          <label className="block text-sm font-medium mb-1">API Key</label>
+          <input type="text" value={config.apiKey} onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
+            placeholder="AIzaSy..." className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-vento-cyan font-mono text-sm" />
+        </div>
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          <div>
+            <label className="block text-sm font-medium mb-1">Auth Domain</label>
+            <input type="text" value={config.authDomain} onChange={(e) => setConfig({ ...config, authDomain: e.target.value })}
+              placeholder="proyecto.firebaseapp.com" className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-vento-cyan font-mono text-sm" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Project ID</label>
+            <input type="text" value={config.projectId} onChange={(e) => setConfig({ ...config, projectId: e.target.value })}
+              placeholder="mi-proyecto" className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-vento-cyan font-mono text-sm" />
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3 mt-3">
+          <div>
+            <label className="block text-sm font-medium mb-1">Storage Bucket</label>
+            <input type="text" value={config.storageBucket} onChange={(e) => setConfig({ ...config, storageBucket: e.target.value })}
+              placeholder="proyecto.appspot.com" className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-vento-cyan font-mono text-sm" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Messaging Sender ID</label>
+            <input type="text" value={config.messagingSenderId} onChange={(e) => setConfig({ ...config, messagingSenderId: e.target.value })}
+              placeholder="123456789" className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-vento-cyan font-mono text-sm" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">App ID</label>
+            <input type="text" value={config.appId} onChange={(e) => setConfig({ ...config, appId: e.target.value })}
+              placeholder="1:123:web:abc" className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-vento-cyan font-mono text-sm" />
+          </div>
+        </div>
       </div>
+
       <button type="submit" className="px-6 py-2.5 bg-vento-cyan text-vento-navy font-semibold rounded-lg hover:bg-cyan-400 transition">
         {saved ? "✓ Guardado" : "Guardar configuración"}
       </button>

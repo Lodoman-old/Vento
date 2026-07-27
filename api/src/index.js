@@ -37,6 +37,19 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// Public Firebase client config endpoint (no auth required)
+app.get("/api/firebase-config", async (req, res) => {
+  try {
+    const { rows } = await query("SELECT firebase_config FROM company_settings LIMIT 1");
+    const cfg = rows[0]?.firebase_config || {};
+    const { apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId } = cfg;
+    if (!apiKey || !projectId) return res.json({ configured: false });
+    res.json({ configured: true, apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId });
+  } catch (err) {
+    res.json({ configured: false });
+  }
+});
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/events", eventRoutes);

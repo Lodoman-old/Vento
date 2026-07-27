@@ -20,15 +20,19 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!user) return;
 
-    requestFcmToken();
+    let unsubscribe = () => {};
 
-    const unsubscribe = listenForegroundMessages((payload) => {
-      const title = payload.notification?.title || "Vento";
-      const body = payload.notification?.body || "";
-      if (Notification.permission === "granted") {
-        new Notification(title, { body, icon: "/vento-icon.svg" });
-      }
-    });
+    (async () => {
+      await requestFcmToken();
+
+      unsubscribe = listenForegroundMessages((payload) => {
+        const title = payload.notification?.title || "Vento";
+        const body = payload.notification?.body || "";
+        if (Notification.permission === "granted") {
+          new Notification(title, { body, icon: "/vento-icon.svg" });
+        }
+      });
+    })();
 
     return () => {
       if (typeof unsubscribe === "function") unsubscribe();
