@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "firebase": "^12.16.0",
     "pdfmake": "^0.3.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

@@ -431,6 +431,23 @@ function TemplatesTab({ toast }) {
           : "Estos items se cargan automáticamente en el checklist al activar un evento."}
       </p>
 
+      {activeTemplate === "agenda" && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-700">
+          <p className="font-medium mb-1">¿Qué es la "hora base"?</p>
+          <p className="text-xs leading-relaxed">
+            El sistema calcula la hora de montaje restándole 4 horas al inicio del evento. La "hora base" es el número de horas relativas a ese punto.
+            Por ejemplo, si el evento es a las <strong>6:00 pm</strong>, el montaje empieza a las <strong>2:00 pm</strong>:
+          </p>
+          <ul className="text-xs mt-2 space-y-0.5">
+            <li><strong>-1</strong> → 1:00 pm (1h antes del montaje)</li>
+            <li><strong>0</strong> → 2:00 pm (inicio del montaje)</li>
+            <li><strong>2</strong> → 4:00 pm</li>
+            <li><strong>4</strong> → 6:00 pm (inicio del evento)</li>
+          </ul>
+          <p className="text-xs mt-2 text-blue-500">Usa negativos para tareas antes del montaje y positivos para después.</p>
+        </div>
+      )}
+
       {/* Add form */}
       <form onSubmit={addTemplate} className="bg-slate-50 rounded-lg p-4 mb-4 flex flex-wrap gap-2 items-end">
         <div className="flex-1 min-w-[200px]">
