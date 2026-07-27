@@ -25,6 +25,7 @@ class EventDetailScreen extends StatefulWidget {
 class _EventDetailScreenState extends State<EventDetailScreen> with SingleTickerProviderStateMixin {
   late TabController _tabCtrl;
   List<AgendaItem> _agenda = [];
+  List<Map> _checklist = [];
   List<Supplier> _suppliers = [];
   List<Quote> _quotes = [];
   bool _loading = true;
@@ -36,9 +37,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 4, vsync: this);
+    _tabCtrl = TabController(length: 5, vsync: this);
     _tabCtrl.addListener(() {
-      if (_tabCtrl.index == 3 && _inventory.isEmpty && !_loadingInventory) _loadInventory();
+      if (_tabCtrl.index == 4 && _inventory.isEmpty && !_loadingInventory) _loadInventory();
     });
     if (widget.isLoading) { _fetchEvent(); } else { _load(); }
     _scheduleReminders();
@@ -60,9 +61,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
         ApiService().get('/agenda?event_id=$id'),
         ApiService().get('/event-suppliers?event_id=$id'),
         ApiService().get('/quotes?event_id=$id'),
+        ApiService().get('/checklist?event_id=$id'),
       ]);
       _agenda = (results[0] as List).map((e) => AgendaItem.fromJson(e)).toList();
       _suppliers = (results[1] as List).map((e) => Supplier.fromJson(e)).toList();
+      _checklist = (results[3] as List).cast<Map>();
       final quotesRaw = results[2] as List;
       final quotes = <Quote>[];
       for (final q in quotesRaw) {
@@ -211,6 +214,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
                   const SizedBox(height: 10),
                   Wrap(spacing: 6, runSpacing: 4, children: [
                     _chip(Icons.checklist, 'Agenda', '$completed/${_agenda.length}'),
+                    _chip(Icons.check_box, 'Checklist', '${_checklist.where((c) => c['is_completed'] == true).length}/${_checklist.length}'),
                     _chip(Icons.business, 'Proveedores', '$hired/${_suppliers.length}'),
                     _chip(Icons.description, 'Cotizaciones', '${_quotes.length}'),
                   ]),
@@ -223,6 +227,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
                 indicatorColor: Theme.of(context).colorScheme.primary,
                 tabs: const [
                   Tab(icon: Icon(Icons.checklist, size: 18), text: 'Agenda'),
+                  Tab(icon: Icon(Icons.check_box, size: 18), text: 'Checklist'),
                   Tab(icon: Icon(Icons.business, size: 18), text: 'Proveedores'),
                   Tab(icon: Icon(Icons.description, size: 18), text: 'Cotizaciones'),
                   Tab(icon: Icon(Icons.inventory, size: 18), text: 'Inventario'),
@@ -234,6 +239,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
                     final result = await Navigator.pushNamed(context, '/agenda/new', arguments: widget.event.id);
                     if (result == true) _load();
                   }),
+                  _buildWithFab(_checklistTab(), Icons.add, _addChecklistItem),
                   _buildWithFab(_suppliersTab(), Icons.add, _assignSupplier),
                   _buildWithFab(_quotesTab(), Icons.add, () async {
                     final result = await Navigator.pushNamed(context, '/quote/new', arguments: widget.event.id);
@@ -308,6 +314,92 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
         );
       },
     );
+  }
+
+  Widget _checklistTab() {
+    if (_checklist.isEmpty) return ListView(children: [const SizedBox(height: 100), Center(child: Column(children: [
+      Icon(Icons.check_box, size: 48, color: Colors.grey.shade200),
+      const SizedBox(height: 8),
+      const Text('Sin items en checklist', style: TextStyle(color: Colors.grey)),
+    ]))]);
+    final completed = _checklist.where((c) => c['is_completed'] == true).length;
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(children: [
+          Text('Checklist', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+          const Spacer(),
+          Text('$completed/${_checklist.length}', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+        ]),
+      ),
+      Expanded(child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
+        itemCount: _checklist.length,
+        itemBuilder: (_, i) {
+          final item = _checklist[i];
+          final done = item['is_completed'] == true;
+          return Card(
+            margin: const EdgeInsets.only(bottom: 6),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            child: ListTile(
+              leading: Icon(done ? Icons.check_circle : Icons.radio_button_unchecked, color: done ? Colors.green : Colors.grey.shade400),
+              title: Text(item['title'] ?? '', style: TextStyle(fontWeight: FontWeight.w500, decoration: done ? TextDecoration.lineThrough : null, color: done ? Colors.grey : null)),
+              trailing: IconButton(
+                icon: Icon(Icons.delete_outline, size: 18, color: Colors.grey.shade400),
+                onPressed: () => _deleteChecklistItem(item['id']),
+              ),
+              onTap: () => _toggleChecklistItem(item),
+            ),
+          );
+        },
+      )),
+    ]);
+  }
+
+  Future<void> _toggleChecklistItem(Map item) async {
+    try {
+      await ApiService().patch('/checklist/${item['id']}', body: {'is_completed': item['is_completed'] != true});
+      _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  Future<void> _deleteChecklistItem(String id) async {
+    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Eliminar item'),
+      content: const Text('¿Eliminar este item del checklist?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Eliminar', style: TextStyle(color: Colors.red))),
+      ],
+    ));
+    if (ok != true) return;
+    try {
+      await ApiService().delete('/checklist/$id');
+      _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  Future<void> _addChecklistItem() async {
+    final ctrl = TextEditingController();
+    final result = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Agregar al checklist'),
+      content: TextField(controller: ctrl, autofocus: true, decoration: const InputDecoration(labelText: 'Item', border: OutlineInputBorder())),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+        ElevatedButton(onPressed: () => Navigator.pop(ctx, ctrl.text.trim()), child: const Text('Agregar')),
+      ],
+    ));
+    if (result == null || result.isEmpty) return;
+    try {
+      await ApiService().post('/checklist', body: {'event_id': widget.event.id, 'title': result});
+      _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   Future<void> _assignSupplier() async {
@@ -719,10 +811,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
       try {
         final existing = await ApiService().get('/events/${widget.event.id}/client-access');
         if (existing is Map && existing['username'] != null) {
+          final regenerated = await ApiService().post('/events/${widget.event.id}/client-access');
           final portalUrl = ApiService().baseUrl.contains('onrender.com')
               ? 'https://vento-web.onrender.com/portal'
               : '${ApiService().baseUrl.replaceAll(RegExp(r':\d+$'), '')}:5173/portal';
-          portalInfo = '\n\nAccede a tu portal:\n$portalUrl\nUsuario: ${existing['username']}\nContraseña: ${existing['password']}';
+          portalInfo = '\n\nAccede a tu portal:\n$portalUrl\nUsuario: ${regenerated['username']}\nContraseña: ${regenerated['password']}';
         }
       } catch (_) {
         try {

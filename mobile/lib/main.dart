@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
@@ -75,6 +76,13 @@ class VentoApp extends StatelessWidget {
       navigatorKey: _navKey,
       title: 'Vento',
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('es'), Locale('en')],
+      locale: const Locale('es'),
       theme: ThemeData(
         colorSchemeSeed: const Color(0xFF0F766E),
         useMaterial3: true,

@@ -384,7 +384,13 @@ export default function QuotesPage() {
       try {
         const existing = await api.get(`/events/${full.event_id}/client-access`);
         if (existing?.username) {
-          portalMsg = `\n\nAccede a tu portal:\n${origin}/portal\nUsuario: ${existing.username}\nContrase\u00f1a: ${existing.password}`;
+          const regenerated = await api.post(`/events/${full.event_id}/client-access`);
+          portalMsg = `\n\nAccede a tu portal:\n${origin}/portal\nUsuario: ${regenerated.username}\nContrase\u00f1a: ${regenerated.password}`;
+        } else {
+          const created = await api.post(`/events/${full.event_id}/client-access`);
+          if (created?.username) {
+            portalMsg = `\n\nAccede a tu portal:\n${origin}/portal\nUsuario: ${created.username}\nContrase\u00f1a: ${created.password}`;
+          }
         }
       } catch {
         try {
