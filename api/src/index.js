@@ -20,6 +20,7 @@ import notificationRoutes from "./routes/notifications.js";
 import userRoutes from "./routes/users.js";
 import checklistRoutes from "./routes/checklist.js";
 import paymentRoutes from "./routes/payments.js";
+import templateRoutes from "./routes/templates.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -50,6 +51,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/checklist", checklistRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/templates", templateRoutes);
 
 // Quote-items endpoints (edit/delete items from a quote)
 app.put("/api/quote-items/:id", authenticate, authorize("administrador"), async (req, res) => {
@@ -100,6 +102,61 @@ async function start() {
   await query("UPDATE catalog_items SET needs_return = true WHERE LOWER(category) IN ('loza', 'sillas', 'mesas', 'cubiertos') OR LOWER(name) IN ('loza', 'sillas', 'mesas', 'cubiertos') OR LOWER(category) LIKE '%loza%' OR LOWER(category) LIKE '%silla%' OR LOWER(category) LIKE '%mesa%' OR LOWER(category) LIKE '%cubiert%'");
   await query("ALTER TABLE payments ADD COLUMN IF NOT EXISTS paid_amount DECIMAL(12,2) DEFAULT 0");
   await query("ALTER TABLE payments ADD COLUMN IF NOT EXISTS applied_to UUID REFERENCES payments(id)");
+
+  // Event templates table
+  await query(`CREATE TABLE IF NOT EXISTS event_templates (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    template_type   VARCHAR(20) NOT NULL CHECK (template_type IN ('agenda', 'checklist')),
+    title           VARCHAR(200) NOT NULL,
+    description     TEXT,
+    category        VARCHAR(50) DEFAULT 'logistica',
+    hours_from_base DECIMAL(5,2),
+    sort_order      INT DEFAULT 0,
+    is_active       BOOLEAN DEFAULT true,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+  )`);
+  await query("CREATE INDEX IF NOT EXISTS idx_event_templates_type ON event_templates(template_type)");
+
+  // Advanced config columns
+  await query("ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS db_config JSONB DEFAULT '{}'::jsonb");
+  await query("ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS firebase_config JSONB DEFAULT '{}'::jsonb");
+  await query("ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS storage_config JSONB DEFAULT '{}'::jsonb");
+
+  // Seed default templates if empty
+  const { rows: tplCount } = await query("SELECT COUNT(*)::int AS count FROM event_templates");
+  if (tplCount[0].count === 0) {
+    const agendaTemplates = [
+      { title: "Decoración general del salón", description: "Globos, letreros, cortinas y ambientación", category: "decoracion", hoursFromBase: -1 },
+      { title: "Montaje de mesas", description: "Colocar y alinear todas las mesas según el plano del evento", category: "logistica", hoursFromBase: 1 },
+      { title: "Montaje de sillas", description: "Colocar sillas en cada mesa según el número de invitados", category: "logistica", hoursFromBase: 2 },
+      { title: "Colocación de mantelería", description: "Poner manteles, cubremanteles y servilletas", category: "logistica", hoursFromBase: 3 },
+      { title: "Montaje de vajilla y cubiertos", description: "Colocar platos, cubiertos y copas en cada lugar", category: "logistica", hoursFromBase: 3 },
+      { title: "Centros de mesa y decoración", description: "Colocar centros de mesa, velas y adornos", category: "decoracion", hoursFromBase: 3 },
+      { title: "Señalética y bienvenida", description: "Colocar letreros de bienvenida, mesas y direccionales", category: "logistica", hoursFromBase: 3.5 },
+      { title: "Revisión general", description: "Recorrido final para verificar que todo esté listo", category: "logistica", hoursFromBase: 4 },
+    ];
+    const checklistTemplates = [
+      "Cinchos para mesas", "Mecate / Cuerda", "Rafia", "Martillo", "Pistola de silicon y barras",
+      "Tijeras", "Cinta adhesiva transparente", "Cinta masking tape", "Desarmadores", "Nivel de burbuja",
+      "Extensión eléctrica", "Focos / Bombillas extra", "Linterna", "Kit de primeros auxilios", "Botiquín de costura",
+    ];
+    for (let i = 0; i < agendaTemplates.length; i++) {
+      const t = agendaTemplates[i];
+      await query(
+        "INSERT INTO event_templates (template_type, title, description, category, hours_from_base, sort_order) VALUES ('agenda', $1, $2, $3, $4, $5)",
+        [t.title, t.description, t.category, t.hoursFromBase, i]
+      );
+    }
+    for (let i = 0; i < checklistTemplates.length; i++) {
+      await query(
+        "INSERT INTO event_templates (template_type, title, sort_order) VALUES ('checklist', $1, $2)",
+        [checklistTemplates[i], i]
+      );
+    }
+    console.log("[db] plantillas por defecto insertadas");
+  }
+
   httpServer.listen(PORT, () => {
     console.log(`[vento-api] corriendo en http://localhost:${PORT}`);
   });

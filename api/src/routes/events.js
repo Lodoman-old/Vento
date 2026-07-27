@@ -6,34 +6,46 @@ import { eventRules } from "../middleware/validate.js";
 import { query } from "../services/db.js";
 import { notifyStaff } from "../services/notifications.js";
 
-// Agenda por defecto cuando el evento se activa
-const DEFAULT_AGENDA = [
-  { title: "Decoración general del salón", description: "Globos, letreros, cortinas y ambientación", category: "decoracion", hoursFromBase: -1 },
-  { title: "Montaje de mesas", description: "Colocar y alinear todas las mesas según el plano del evento", category: "logistica", hoursFromBase: 1 },
-  { title: "Montaje de sillas", description: "Colocar sillas en cada mesa según el número de invitados", category: "logistica", hoursFromBase: 2 },
-  { title: "Colocación de mantelería", description: "Poner manteles, cubremanteles y servilletas", category: "logistica", hoursFromBase: 3 },
-  { title: "Montaje de vajilla y cubiertos", description: "Colocar platos, cubiertos y copas en cada lugar", category: "logistica", hoursFromBase: 3 },
-  { title: "Centros de mesa y decoración", description: "Colocar centros de mesa, velas y adornos", category: "decoracion", hoursFromBase: 3 },
-  { title: "Señalética y bienvenida", description: "Colocar letreros de bienvenida, mesas y direccionales", category: "logistica", hoursFromBase: 3.5 },
-  { title: "Revisión general", description: "Recorrido final para verificar que todo esté listo", category: "logistica", hoursFromBase: 4 },
-];
-
+// Agenda por defecto cuando el evento se activa — ahora se lee de event_templates
 async function generateDefaultAgenda(eventId, eventDate) {
-  // Only generate if no agenda items exist yet
   const { rows: existing } = await query("SELECT COUNT(*)::int AS count FROM agenda_items WHERE event_id = $1", [eventId]);
   if (existing[0].count > 0) return;
 
+  const { rows: templates } = await query(
+    "SELECT * FROM event_templates WHERE template_type = 'agenda' AND is_active = true ORDER BY sort_order"
+  );
+  if (templates.length === 0) return;
+
   const baseTime = new Date(eventDate);
-  // Start setup 4 hours before event
   baseTime.setHours(baseTime.getHours() - 4);
 
-  for (let i = 0; i < DEFAULT_AGENDA.length; i++) {
-    const item = DEFAULT_AGENDA[i];
-    const startTime = new Date(baseTime.getTime() + item.hoursFromBase * 60 * 60 * 1000);
+  for (let i = 0; i < templates.length; i++) {
+    const t = templates[i];
+    const hours = t.hours_from_base != null ? Number(t.hours_from_base) : i;
+    const startTime = new Date(baseTime.getTime() + hours * 60 * 60 * 1000);
     await query(
       `INSERT INTO agenda_items (event_id, title, description, start_time, category, sort_order)
        VALUES ($1, $2, $3, $4, $5, $6)`,
-      [eventId, item.title, item.description, startTime.toISOString(), item.category, i]
+      [eventId, t.title, t.description, startTime.toISOString(), t.category || "logistica", i]
+    );
+  }
+}
+
+async function generateDefaultChecklist(eventId) {
+  const { rows: existing } = await query("SELECT COUNT(*)::int AS count FROM checklist_items WHERE event_id = $1", [eventId]);
+  if (existing[0].count > 0) return;
+
+  const { rows: templates } = await query(
+    "SELECT * FROM event_templates WHERE template_type = 'checklist' AND is_active = true ORDER BY sort_order"
+  );
+  if (templates.length === 0) return;
+
+  for (let i = 0; i < templates.length; i++) {
+    const t = templates[i];
+    await query(
+      `INSERT INTO checklist_items (event_id, title, sort_order)
+       VALUES ($1, $2, $3)`,
+      [eventId, t.title, i]
     );
   }
 }
@@ -153,6 +165,7 @@ router.post("/", authorize("administrador"), ...eventRules, async (req, res) => 
     );
     if (status === "activo") {
       await generateDefaultAgenda(rows[0].id, date);
+      await generateDefaultChecklist(rows[0].id);
     }
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -202,6 +215,7 @@ router.put("/:id", authorize("administrador"), async (req, res) => {
       if (newStatus === "activo") {
         const eventDate = req.body.date || old[0].date;
         await generateDefaultAgenda(req.params.id, eventDate);
+        await generateDefaultChecklist(req.params.id);
       }
     }
 

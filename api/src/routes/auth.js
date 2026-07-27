@@ -99,4 +99,58 @@ router.get("/me", authenticate, async (req, res) => {
   }
 });
 
+// POST /api/auth/change-password
+router.post("/change-password", authenticate, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password) {
+      return res.status(400).json({ error: "Contraseña actual y nueva contraseña requeridas" });
+    }
+    if (new_password.length < 6) {
+      return res.status(400).json({ error: "La nueva contraseña debe tener al menos 6 caracteres" });
+    }
+
+    const { rows } = await query("SELECT password_hash FROM users WHERE id = $1", [req.user.id]);
+    if (rows.length === 0) return res.status(404).json({ error: "Usuario no encontrado" });
+
+    const valid = await bcrypt.compare(current_password, rows[0].password_hash);
+    if (!valid) {
+      return res.status(401).json({ error: "La contraseña actual es incorrecta" });
+    }
+
+    const hash = await bcrypt.hash(new_password, 10);
+    await query("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2", [hash, req.user.id]);
+    res.json({ ok: true, message: "Contraseña actualizada" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/auth/profile — actualizar perfil propio
+router.put("/profile", authenticate, async (req, res) => {
+  try {
+    const { display_name, email, phone } = req.body;
+    const fields = [];
+    const values = [];
+    let idx = 1;
+    if (display_name !== undefined) { fields.push(`display_name = $${idx++}`); values.push(display_name); }
+    if (email !== undefined) { fields.push(`email = $${idx++}`); values.push(email); }
+    if (phone !== undefined) { fields.push(`phone = $${idx++}`); values.push(phone); }
+    if (fields.length === 0) return res.status(400).json({ error: "Sin campos para actualizar" });
+    fields.push("updated_at = NOW()");
+    values.push(req.user.id);
+    const { rows } = await query(
+      `UPDATE users SET ${fields.join(", ")} WHERE id = $${idx} RETURNING id, display_name, email, phone, role, photo_url`,
+      values
+    );
+    if (rows.length === 0) return res.status(404).json({ error: "Usuario no encontrado" });
+    res.json(rows[0]);
+  } catch (err) {
+    if (err.code === "23505") {
+      return res.status(409).json({ error: "Email ya registrado" });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

@@ -15,6 +15,7 @@ import CatalogPage from "./pages/CatalogPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import UsersPage from "./pages/UsersPage";
 import SettingsPage from "./pages/SettingsPage";
+import ProfilePage from "./pages/ProfilePage";
 import PortalPage from "./pages/PortalPage";
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/events/:id/quotes" element={<QuotesPage />} />
           <Route path="/catalog" element={<CatalogPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/users" element={<UsersPage />} />
         </Route>

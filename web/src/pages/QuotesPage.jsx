@@ -585,6 +585,12 @@ export default function QuotesPage() {
                     Editar
                   </button>
                 )}
+                {user?.role === "administrador" && (q.status === "enviado" || q.status === "aceptado") && (
+                  <button onClick={() => shareWhatsApp(q)}
+                    className="text-[10px] px-2 py-1 bg-green-500 text-white rounded-full hover:bg-green-600 transition">
+                    Reenviar WhatsApp
+                  </button>
+                )}
                 {user?.role === "administrador" && (
                   <button onClick={() => setDeleteConfirm(q.id)}
                     className="text-xs px-2.5 py-1.5 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition">
@@ -652,6 +658,7 @@ function QuoteDetail({ quoteId }) {
   const [payments, setPayments] = useState([]);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [payForm, setPayForm] = useState({ amount: "", method: "efectivo", reference: "", notes: "", applied_to: "" });
+  const [lastPaidPayment, setLastPaidPayment] = useState(null);
   const { user } = useAuth();
   const toast = useToast();
   useEffect(() => {
@@ -672,9 +679,14 @@ function QuoteDetail({ quoteId }) {
       if (payForm.applied_to) payload.applied_to = payForm.applied_to;
       const res = await api.post("/payments", payload);
       setPayments([res, ...payments]);
+      // Refresh quote data to update paid_amount in plan
+      const updatedQuote = await api.get(`/quotes/${quoteId}`);
+      setData(updatedQuote);
       setShowPaymentForm(false);
+      const lastPayment = res;
       setPayForm({ amount: "", method: "efectivo", reference: "", notes: "", applied_to: "" });
       toast("Pago registrado");
+      setLastPaidPayment({ ...lastPayment, client_name: updatedQuote.client_name, client_phone: updatedQuote.client_phone, quote_total: updatedQuote.total, quote_id: quoteId });
     } catch (err) { toast(err.message, "error"); }
   }
 
@@ -684,6 +696,144 @@ function QuoteDetail({ quoteId }) {
       setPayments(payments.filter((p) => p.id !== id));
       toast("Pago eliminado");
     } catch (err) { toast(err.message, "error"); }
+  }
+
+  async function generateReceipt() {
+    if (!lastPaidPayment) return;
+    try {
+      const company = await api.get("/settings");
+      const { default: pdfMake } = await import("pdfmake/build/pdfmake");
+      const { default: pdfFonts } = await import("pdfmake/build/vfs_fonts");
+      pdfMake.vfs = pdfFonts.vfs;
+
+      let logoImage = null;
+      if (company?.logo_url) {
+        try {
+          const resp = await fetch(company.logo_url);
+          const blob = await resp.blob();
+          const reader = new FileReader();
+          logoImage = await new Promise((resolve) => {
+            reader.onload = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+          });
+        } catch {}
+      }
+
+      const fm = (n) => `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const methodLabels = { efectivo: "Efectivo", transferencia: "Transferencia", tarjeta: "Tarjeta", deposito: "Depósito" };
+      const p = lastPaidPayment;
+
+      const remainingAfterPayment = Number(p.quote_total) - Number(p.amount);
+      // Calculate how much was already paid before this payment
+      const priorPaid = payments.reduce((s, pay) => s + (pay.method === "enganche" || pay.method === "mensualidad" ? 0 : Number(pay.amount)), 0);
+
+      const docDefinition = {
+        pageSize: "A4",
+        pageMargins: [40, 50, 40, 50],
+        content: [
+          {
+            columns: [
+              {
+                width: 80,
+                stack: [
+                  logoImage ? { image: logoImage, width: 40, alignment: "center", margin: [0, 0, 0, 2] } : { text: "V", fontSize: 32, bold: true, color: "#0F172A", alignment: "center" },
+                  { text: "VENTO", fontSize: 9, bold: true, color: "#94A3B8", alignment: "center", letterSpacing: 3 },
+                ],
+              },
+              [
+                { text: company?.company_name || "VENTO", fontSize: 16, bold: true, color: "#0F172A", margin: [0, 4, 0, 0] },
+                company?.address ? { text: company.address, fontSize: 9, color: "#64748B", margin: [0, 2, 0, 0] } : null,
+                company?.tax_id ? { text: `RFC: ${company.tax_id}`, fontSize: 8, color: "#94A3B8", margin: [0, 2, 0, 0] } : null,
+                {
+                  text: [
+                    company?.phone ? `Tel: ${company.phone}` : "",
+                    company?.email ? `${company?.phone ? "  |  " : ""}Email: ${company.email}` : "",
+                  ].filter(Boolean).join(""),
+                  fontSize: 8, color: "#94A3B8", margin: [0, 2, 0, 0],
+                },
+              ],
+            ],
+            margin: [0, 0, 0, 15],
+          },
+          { text: "RECIBO DE PAGO", fontSize: 20, bold: true, color: "#0F172A", alignment: "center", margin: [0, 0, 0, 20] },
+          {
+            canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: "#E2E8F0" }],
+            margin: [0, 0, 0, 15],
+          },
+          {
+            columns: [
+              { width: "50%", stack: [
+                { text: "DATOS DEL CLIENTE", fontSize: 10, bold: true, color: "#0F172A", margin: [0, 0, 0, 5] },
+                { text: `Nombre: ${p.client_name || "N/A"}`, fontSize: 10, color: "#334155", margin: [0, 0, 0, 3] },
+                { text: `WhatsApp: ${p.client_phone || "N/A"}`, fontSize: 10, color: "#334155", margin: [0, 0, 0, 3] },
+              ]},
+              { width: "50%", stack: [
+                { text: "DATOS DEL PAGO", fontSize: 10, bold: true, color: "#0F172A", margin: [0, 0, 0, 5] },
+                { text: `Fecha: ${new Date(p.payment_date || p.created_at).toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" })}`, fontSize: 10, color: "#334155", margin: [0, 0, 0, 3] },
+                { text: `Método: ${methodLabels[p.method] || p.method}`, fontSize: 10, color: "#334155", margin: [0, 0, 0, 3] },
+                p.reference ? { text: `Referencia: ${p.reference}`, fontSize: 10, color: "#334155", margin: [0, 0, 0, 3] } : null,
+              ]},
+            ],
+            margin: [0, 0, 0, 15],
+          },
+          {
+            canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: "#E2E8F0" }],
+            margin: [0, 0, 0, 10],
+          },
+          {
+            table: {
+              widths: ["*", "auto"],
+              body: [
+                [{ text: "Concepto", style: "tableHeader" }, { text: "Monto", style: "tableHeader", alignment: "right" }],
+                [{ text: `Pago a cotización`, margin: [5, 3, 5, 3] }, { text: fm(p.amount), alignment: "right", margin: [5, 3, 5, 3] }],
+                [{ text: `Total de cotización`, margin: [5, 3, 5, 3] }, { text: fm(p.quote_total), alignment: "right", margin: [5, 3, 5, 3] }],
+                [{ text: "Saldo pendiente", margin: [5, 3, 5, 3], bold: true }, { text: fm(Math.max(0, Number(p.quote_total) - priorPaid - Number(p.amount))), alignment: "right", margin: [5, 3, 5, 3], bold: true }],
+              ],
+            },
+            layout: {
+              hLineWidth: (i) => (i === 0 || i === 1) ? 1 : 0.5,
+              vLineWidth: () => 0,
+              hLineColor: () => "#E2E8F0",
+              fillColor: (rowIndex) => (rowIndex === 0) ? "#F8FAFC" : null,
+              paddingLeft: () => 5,
+              paddingRight: () => 5,
+            },
+            margin: [0, 0, 0, 10],
+          },
+          p.notes ? { text: `Notas: ${p.notes}`, fontSize: 9, color: "#64748B", margin: [0, 0, 0, 10] } : null,
+          {
+            canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: "#E2E8F0" }],
+            margin: [0, 15, 0, 15],
+          },
+          {
+            columns: [
+              { width: "50%", stack: [
+                { text: " ", margin: [0, 0, 0, 30] },
+                { canvas: [{ type: "line", x1: 60, y1: 0, x2: 200, y2: 0, lineWidth: 0.5, lineColor: "#94A3B8" }], margin: [0, 0, 0, 3] },
+                { text: "Firma del cliente", fontSize: 9, color: "#94A3B8", alignment: "center" },
+              ]},
+              { width: "50%", stack: [
+                { text: " ", margin: [0, 0, 0, 30] },
+                { canvas: [{ type: "line", x1: 60, y1: 0, x2: 200, y2: 0, lineWidth: 0.5, lineColor: "#94A3B8" }], margin: [0, 0, 0, 3] },
+                { text: "Firma del organizador", fontSize: 9, color: "#94A3B8", alignment: "center" },
+              ]},
+            ],
+          },
+          {
+            text: `Recibo generado por Vento — ${new Date().toLocaleDateString("es-MX")}`,
+            fontSize: 7, color: "#CBD5E1", alignment: "center", margin: [0, 20, 0, 0],
+          },
+        ],
+        styles: {
+          tableHeader: { fontSize: 9, bold: true, color: "#64748B", margin: [5, 3, 5, 3] },
+        },
+      };
+
+      pdfMake.createPdf(docDefinition).download(`recibo_pago_${p.client_name || "cliente"}_${new Date().toISOString().slice(0, 10)}.pdf`);
+      setLastPaidPayment(null);
+    } catch (err) {
+      toast("Error al generar recibo", "error");
+    }
   }
 
   return (
@@ -846,6 +996,25 @@ function QuoteDetail({ quoteId }) {
           </div>
         )}
       </div>
+
+      {lastPaidPayment && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={() => setLastPaidPayment(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl animate-slide-up text-center space-y-4">
+            <p className="text-lg font-semibold">Pago registrado</p>
+            <p className="text-sm text-slate-500">¿Deseas generar el recibo de pago en PDF?</p>
+            <div className="flex gap-2 justify-center">
+              <button onClick={generateReceipt}
+                className="px-4 py-2 bg-vento-cyan text-vento-navy rounded-lg text-sm font-medium hover:bg-cyan-400 transition">
+                Generar recibo
+              </button>
+              <button onClick={() => setLastPaidPayment(null)}
+                className="px-4 py-2 border border-slate-200 rounded-lg text-sm hover:bg-slate-50 transition">
+                Ahora no
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

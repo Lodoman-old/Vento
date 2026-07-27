@@ -67,7 +67,9 @@ export default function Sidebar({ open, onClose }) {
       </nav>
 
       <div className="p-4 border-t border-white/10">
-        <p className="text-sm text-white/60">{user?.display_name || user?.name}</p>
+        <NavLink to="/profile" className={({ isActive }) =>
+          `block text-sm mb-1 transition ${isActive ? "text-vento-cyan" : "text-white/60 hover:text-white/80"}`
+        }>{user?.display_name || user?.name}</NavLink>
         <p className="text-xs text-white/40 capitalize">{user?.role}</p>
         <button onClick={logout} className="mt-2 text-xs text-red-400 hover:text-red-300">
           Cerrar sesión
