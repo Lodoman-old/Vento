@@ -175,4 +175,7 @@ async function start() {
   });
 }
 
-start();
+start().catch((err) => {
+  console.error("[vento-api] error fatal en start():", err);
+  process.exit(1);
+});

@@ -386,6 +386,7 @@ function TemplatesTab({ toast }) {
   const [activeTemplate, setActiveTemplate] = useState("agenda");
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newCategory, setNewCategory] = useState("logistica");
@@ -426,6 +427,7 @@ function TemplatesTab({ toast }) {
       setNewTitle("");
       setNewDesc("");
       setNewHours("");
+      setShowModal(false);
       loadTemplates();
       toast("Plantilla agregada");
     } catch (err) {
@@ -502,38 +504,56 @@ function TemplatesTab({ toast }) {
         </div>
       )}
 
-      {/* Add form */}
-      <form onSubmit={addTemplate} className="bg-slate-50 rounded-lg p-4 mb-4 flex flex-wrap gap-2 items-end">
-        <div className="flex-1 min-w-[200px]">
-          <label className="block text-xs text-slate-500 mb-1">Título *</label>
-          <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)}
-            className="w-full px-2 py-1.5 border border-slate-200 rounded text-sm" required />
+      {/* Add button */}
+      <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-vento-cyan text-vento-navy rounded-lg text-sm font-medium mb-4">
+        + Agregar plantilla
+      </button>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
+          <div className="bg-white rounded-xl p-6 w-full max-w-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Agregar {activeTemplate === "agenda" ? "tarea" : "item"}</h3>
+              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            </div>
+            <form onSubmit={(e) => { addTemplate(e); setShowModal(false); }} className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">Título *</label>
+                <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" required autoFocus />
+              </div>
+              {activeTemplate === "agenda" && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Descripción</label>
+                    <input value={newDesc} onChange={(e) => setNewDesc(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Categoría</label>
+                      <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-vento-cyan">
+                        {agendaCategories.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Horas base</label>
+                      <input type="number" step="0.5" value={newHours} onChange={(e) => setNewHours(e.target.value)}
+                        placeholder="ej: 3" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" />
+                    </div>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm">Cancelar</button>
+                <button type="submit" className="px-4 py-2 bg-vento-cyan text-vento-navy rounded-lg text-sm font-medium">Agregar</button>
+              </div>
+            </form>
+          </div>
         </div>
-        {activeTemplate === "agenda" && (
-          <>
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs text-slate-500 mb-1">Descripción</label>
-              <input value={newDesc} onChange={(e) => setNewDesc(e.target.value)}
-                className="w-full px-2 py-1.5 border border-slate-200 rounded text-sm" />
-            </div>
-            <div className="w-32">
-              <label className="block text-xs text-slate-500 mb-1">Categoría</label>
-              <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)}
-                className="w-full px-2 py-1.5 border border-slate-200 rounded text-sm">
-                {agendaCategories.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div className="w-28">
-              <label className="block text-xs text-slate-500 mb-1">Horas base</label>
-              <input type="number" step="0.5" value={newHours} onChange={(e) => setNewHours(e.target.value)}
-                placeholder="ej: 3" className="w-full px-2 py-1.5 border border-slate-200 rounded text-sm" />
-            </div>
-          </>
-        )}
-        <button type="submit" className="px-4 py-1.5 bg-vento-cyan text-vento-navy rounded text-sm font-medium">
-          + Agregar
-        </button>
-      </form>
+      )}
 
       {/* List */}
       {loading ? (
@@ -586,7 +606,7 @@ function TemplatesTab({ toast }) {
               )}
             </div>
           ))}
-          {templates.length === 0 && <p className="text-sm text-slate-400">No hay plantillas. Agrega items arriba.</p>}
+          {templates.length === 0 && <p className="text-sm text-slate-400">No hay plantillas. Usa el botón de arriba para agregar.</p>}
         </div>
       )}
     </div>
