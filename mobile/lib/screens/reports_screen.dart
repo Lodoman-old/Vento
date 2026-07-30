@@ -116,6 +116,8 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
   }
 
   pw.Widget _catalogCard(Map item) {
+    final nf = NumberFormat('#,##0.00', 'es');
+    final price = double.tryParse(item['unit_price']?.toString() ?? '0') ?? 0;
     return pw.Container(
       padding: const pw.EdgeInsets.all(8),
       margin: const pw.EdgeInsets.all(4),
@@ -127,7 +129,7 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
         pw.Text(item['name'] ?? '', style: pw.TextStyle(font: pw.Font.helveticaBold(), fontSize: 9)),
         pw.Text(item['category'] ?? '', style: pw.TextStyle(font: pw.Font.helvetica(), fontSize: 8, color: PdfColors.grey)),
         pw.SizedBox(height: 4),
-        pw.Text('\$${fm.format(double.tryParse(item['unit_price']?.toString() ?? '0') ?? 0)}',
+        pw.Text('\$${nf.format(price)}',
           style: pw.TextStyle(font: pw.Font.helveticaBold(), fontSize: 10, color: PdfColor.fromInt(0xFF22D3EE))),
         pw.SizedBox(height: 4),
         pw.Container(
