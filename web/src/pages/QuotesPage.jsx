@@ -592,10 +592,16 @@ export default function QuotesPage() {
                   </button>
                 )}
                 {user?.role === "administrador" && (q.status === "enviado" || q.status === "aceptado") && (
-                  <button onClick={() => shareWhatsApp(q)}
-                    className="text-[10px] px-2 py-1 bg-green-500 text-white rounded-full hover:bg-green-600 transition">
-                    Reenviar WhatsApp
-                  </button>
+                  <>
+                    <button onClick={() => shareWhatsApp(q)}
+                      className="text-[10px] px-2 py-1 bg-green-500 text-white rounded-full hover:bg-green-600 transition">
+                      Reenviar WhatsApp
+                    </button>
+                    <button onClick={() => updateStatus(q.id, "borrador")}
+                      className="text-[10px] px-2 py-1 bg-amber-500 text-white rounded-full hover:bg-amber-600 transition">
+                      Reabrir
+                    </button>
+                  </>
                 )}
                 {user?.role === "administrador" && (
                   <button onClick={() => setDeleteConfirm(q.id)}

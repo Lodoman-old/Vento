@@ -180,8 +180,40 @@ router.patch("/:id/status", authorize("administrador"), async (req, res) => {
       [status, req.params.id]
     );
 
+    // Si se reabre a borrador, sincronizar proveedores y regenerar plan
+    if (status === "borrador" && old[0].status !== "borrador") {
+      const { rows: supplierCosts } = await query(
+        `SELECT COALESCE(SUM(budget_amount), 0) AS total FROM event_suppliers WHERE event_id = $1`,
+        [old[0].event_id]
+      );
+      const { rows: userItems } = await query(
+        "SELECT COALESCE(SUM(subtotal), 0) AS total FROM quote_items WHERE quote_id = $1 AND is_supplier_cost = false",
+        [req.params.id]
+      );
+      const newTotal = Number(userItems[0].total) + Number(supplierCosts[0].total);
+      await query("UPDATE quotes SET total = $1, updated_at = NOW() WHERE id = $2", [newTotal, req.params.id]);
+
+      await query("DELETE FROM quote_items WHERE quote_id = $1 AND is_supplier_cost = true", [req.params.id]);
+      const { rows: suppliers } = await query(
+        `SELECT sc.name, es.budget_amount FROM event_suppliers es
+         JOIN supplier_catalog sc ON sc.id = es.supplier_id
+         WHERE es.event_id = $1 AND es.budget_amount > 0`,
+        [old[0].event_id]
+      );
+      for (const s of suppliers) {
+        await query(
+          `INSERT INTO quote_items (quote_id, item_name, quantity, unit_price, is_supplier_cost)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [req.params.id, s.name, 1, s.budget_amount, true]
+        );
+      }
+
+      await query("DELETE FROM payments WHERE quote_id = $1 AND method IN ('enganche', 'mensualidad')", [req.params.id]);
+      await generatePaymentPlan(req.params.id, newTotal, old[0].event_id);
+    }
+
     if (status !== old[0].status) {
-      const statusLabels = { enviado: "Enviada", aceptado: "Aceptada", rechazado: "Rechazada" };
+      const statusLabels = { enviado: "Enviada", aceptado: "Aceptada", rechazado: "Rechazada", borrador: "Reabierta" };
       await createNotification({
         userId: req.user.id,
         eventId: old[0].event_id,
@@ -191,7 +223,9 @@ router.patch("/:id/status", authorize("administrador"), async (req, res) => {
       });
     }
 
-    res.json(rows[0]);
+    const { rows: fullItems } = await query("SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY is_supplier_cost, id", [req.params.id]);
+    const { rows: payments } = await query("SELECT * FROM payments WHERE quote_id = $1 ORDER BY payment_date", [req.params.id]);
+    res.json({ ...rows[0], items: fullItems, payments });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

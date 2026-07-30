@@ -606,6 +606,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
                     final result = await Navigator.pushNamed(context, '/quote/new', arguments: widget.event.id);
                     if (result == true) _load();
                   }),
+                if (q.status == 'aceptado' || q.status == 'enviado')
+                  _actionBtn('Reabrir', Colors.amber, () => _updateQuoteStatus(q.id, 'borrador')),
                 _actionBtn('PDF', Colors.teal, () => _quotePdf(q)),
                 if (q.clientPhone != null && q.clientPhone!.isNotEmpty)
                   _actionBtn('WhatsApp', Colors.green, () => _quoteWhatsApp(q)),
