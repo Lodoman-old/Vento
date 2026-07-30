@@ -17,6 +17,7 @@ import UsersPage from "./pages/UsersPage";
 import SettingsPage from "./pages/SettingsPage";
 import ProfilePage from "./pages/ProfilePage";
 import PortalPage from "./pages/PortalPage";
+import ReportsPage from "./pages/ReportsPage";
 
 export default function App() {
   return (
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/users" element={<UsersPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
         </Route>
         <Route element={<PortalRoute />}>
           <Route path="/portal" element={<PortalPage />} />

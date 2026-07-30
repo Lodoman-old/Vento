@@ -269,8 +269,17 @@ router.post("/:id/regenerate-payments", authorize("administrador"), async (req, 
     const { rows: quote } = await query("SELECT event_id, total FROM quotes WHERE id = $1", [req.params.id]);
     if (quote.length === 0) return res.status(404).json({ error: "Cotización no encontrada" });
 
+    const total = Number(quote[0].total);
+    const { rows: actualPayments } = await query(
+      "SELECT COALESCE(SUM(amount), 0) AS paid FROM payments WHERE quote_id = $1 AND method NOT IN ('enganche', 'mensualidad')",
+      [req.params.id]
+    );
+    const paidTotal = Number(actualPayments[0].paid);
+    const remaining = total - paidTotal;
+    if (remaining <= 0) return res.status(400).json({ error: "La cotización está completamente pagada" });
+
     await query("DELETE FROM payments WHERE quote_id = $1 AND method IN ('enganche', 'mensualidad')", [req.params.id]);
-    await generatePaymentPlan(req.params.id, Number(quote[0].total), quote[0].event_id);
+    await generatePaymentPlan(req.params.id, remaining, quote[0].event_id);
 
     const { rows: payments } = await query("SELECT * FROM payments WHERE quote_id = $1 ORDER BY payment_date", [req.params.id]);
     res.json(payments);

@@ -11,6 +11,7 @@ const links = [
   { to: "/suppliers", label: "Proveedores" },
   { to: "/notifications", label: "Notificaciones" },
   { to: "/users", label: "Usuarios", adminOnly: true },
+  { to: "/reports", label: "Reportes", adminOnly: true },
   { to: "/settings", label: "Configuración", adminOnly: true },
 ];
 

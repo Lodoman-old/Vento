@@ -916,16 +916,18 @@ function QuoteDetail({ quoteId }) {
             })}
           </div>
           {user?.role === "administrador" && (
-            <button onClick={async () => {
-              try {
-                await api.post(`/quotes/${quoteId}/regenerate-payments`);
-                api.get(`/payments?quote_id=${quoteId}`).then(setPayments); api.get(`/quotes/${quoteId}`).then(setData);
-                toast("Plan de pagos regenerado");
-              } catch (e) { toast(e.message, "error"); }
-            }}
-              className="text-[10px] text-vento-cyan hover:underline mt-1">
-              Regenerar plan de pagos
-            </button>
+            balance <= 0
+              ? <span className="text-[10px] text-green-600 mt-1 block">Completamente pagado</span>
+              : <button onClick={async () => {
+                  try {
+                    await api.post(`/quotes/${quoteId}/regenerate-payments`);
+                    api.get(`/payments?quote_id=${quoteId}`).then(setPayments); api.get(`/quotes/${quoteId}`).then(setData);
+                    toast("Plan de pagos regenerado");
+                  } catch (e) { toast(e.message, "error"); }
+                }}
+                  className="text-[10px] text-vento-cyan hover:underline mt-1">
+                  Regenerar plan de pagos
+                </button>
           )}
         </div>
       )}

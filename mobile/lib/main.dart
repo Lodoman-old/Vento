@@ -23,6 +23,7 @@ import 'screens/quote_form_screen.dart';
 import 'screens/payment_form_screen.dart';
 import 'screens/supplier_form_screen.dart';
 import 'screens/catalog_form_screen.dart';
+import 'screens/reports_screen.dart';
 import 'models/event.dart';
 import 'dart:convert';
 
@@ -121,6 +122,8 @@ class VentoApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => const CatalogScreen());
           case '/suppliers':
             return MaterialPageRoute(builder: (_) => const SuppliersScreen());
+          case '/reports':
+            return MaterialPageRoute(builder: (_) => const ReportsScreen());
           case '/notifications':
             return MaterialPageRoute(builder: (_) => const NotificationsScreen());
           case '/users':

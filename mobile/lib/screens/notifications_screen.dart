@@ -80,8 +80,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         color: n['is_read'] == true ? null : Theme.of(context).colorScheme.primary.withValues(alpha: 0.05),
                         child: ListTile(
                           leading: Icon(_icon(n['type']), color: Theme.of(context).colorScheme.primary),
-                          title: Text(n['message'] ?? '', style: const TextStyle(fontSize: 13)),
-                          subtitle: n['event_name'] != null ? Text(n['event_name'], style: const TextStyle(fontSize: 11, color: Colors.grey)) : null,
+                          title: Text(n['title'] ?? n['message'] ?? '', style: const TextStyle(fontSize: 13)),
+                          subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            if (n['body'] != null) Text(n['body'], style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                            if (n['event_name'] != null) Text(n['event_name'], style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                          ]),
                           trailing: n['is_read'] == true ? null : const Icon(Icons.circle, size: 8, color: Colors.blue),
                           onTap: n['is_read'] == true ? null : () => _markRead(n['id']),
                         ),

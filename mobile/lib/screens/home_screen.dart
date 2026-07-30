@@ -102,6 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _drawerItem(Icons.inventory, 'Catálogo', '/catalog'),
             _drawerItem(Icons.business, 'Proveedores', '/suppliers'),
             _drawerItem(Icons.notifications, 'Notificaciones', '/notifications'),
+            if (isAdmin) _drawerItem(Icons.assessment, 'Reportes', '/reports'),
             if (isAdmin) _drawerItem(Icons.people, 'Usuarios', '/users'),
             const Divider(),
             _drawerItem(Icons.settings, 'Configuración', '/profile'),

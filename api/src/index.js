@@ -7,6 +7,7 @@ import { connectDb, query } from "./services/db.js";
 import { setupRedis } from "./services/redis.js";
 import { setupSocketEvents } from "./socket.js";
 import { authenticate, authorize } from "./middleware/auth.js";
+import { notifyAdmins } from "./services/notifications.js";
 import authRoutes from "./routes/auth.js";
 import eventRoutes from "./routes/events.js";
 import agendaRoutes from "./routes/agenda.js";
@@ -21,6 +22,7 @@ import userRoutes from "./routes/users.js";
 import checklistRoutes from "./routes/checklist.js";
 import paymentRoutes from "./routes/payments.js";
 import templateRoutes from "./routes/templates.js";
+import reportRoutes from "./routes/reports.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -65,6 +67,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/checklist", checklistRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/templates", templateRoutes);
+app.use("/api/reports", reportRoutes);
 
 // Quote-items endpoints (edit/delete items from a quote)
 app.put("/api/quote-items/:id", authenticate, authorize("administrador"), async (req, res) => {
@@ -169,6 +172,32 @@ async function start() {
     }
     console.log("[db] plantillas por defecto insertadas");
   }
+
+  // CRON: Payment reminders — check every hour for payments due in next 24h
+  setInterval(async () => {
+    try {
+      const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+      const today = new Date().toISOString().slice(0, 10);
+      const { rows: duePayments } = await query(
+        `SELECT p.id, p.amount, p.payment_date, p.notes, q.client_name, q.event_id, e.name AS event_name
+         FROM payments p
+         JOIN quotes q ON q.id = p.quote_id
+         JOIN events e ON e.id = q.event_id
+         WHERE p.method IN ('enganche', 'mensualidad')
+           AND (p.paid_amount IS NULL OR p.paid_amount < p.amount)
+           AND p.payment_date BETWEEN $1 AND $2`,
+        [today, tomorrow]
+      );
+      for (const p of duePayments) {
+        await notifyAdmins({
+          eventId: p.event_id,
+          title: "Recordatorio de pago",
+          body: `${p.client_name || "Cliente"} — $${Number(p.amount).toLocaleString()} (${p.notes || "Cuota"}) vence el ${new Date(p.payment_date).toLocaleDateString("es-MX")}`,
+          type: "general",
+        });
+      }
+    } catch (e) { console.error("[cron] error recordatorio pagos:", e.message); }
+  }, 3600000);
 
   httpServer.listen(PORT, () => {
     console.log(`[vento-api] corriendo en http://localhost:${PORT}`);
