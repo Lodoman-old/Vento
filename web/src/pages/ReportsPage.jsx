@@ -105,7 +105,7 @@ export default function ReportsPage() {
               <input type="date" value={start} onChange={(e) => setStart(e.target.value)}
                 className="px-2 py-1 border border-slate-200 rounded text-sm" />
               <label className="text-xs text-slate-500">Al:</label>
-              <input type="date" value={end} onChange={(e) => setEnd(e.target value)}
+              <input type="date" value={end} onChange={(e) => setEnd(e.target.value)}
                 className="px-2 py-1 border border-slate-200 rounded text-sm" />
             </div>
             <h2 className="text-lg font-bold mb-3">Eventos del {fmDate(start)} al {fmDate(end)}</h2>
