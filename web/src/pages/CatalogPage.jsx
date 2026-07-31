@@ -7,7 +7,7 @@ function imgSrc(url) {
   return url?.startsWith("http") ? url : url || "/placeholder.svg";
 }
 
-const emptyForm = { name: "", category: "", unit_price: "",   unit_type: "pieza", description: "", stock_available: "", image_url: "", needs_return: false };
+const emptyForm = { name: "", category: "", unit_price: "", unit_type: "pieza", description: "", stock_available: "", image_url: "", needs_return: false, no_return_cost: "" };
 const unitTypes = ["pieza", "persona", "metro", "juego", "kg", "litro"];
 
 export default function CatalogPage() {
@@ -60,6 +60,7 @@ export default function CatalogPage() {
       stock_available: item.stock_available?.toString() || "",
       image_url: item.image_url || "",
       needs_return: !!item.needs_return,
+      no_return_cost: item.no_return_cost?.toString() || "",
     });
     setShowForm(true);
   }
@@ -87,6 +88,7 @@ export default function CatalogPage() {
         stock_available: form.stock_available ? Number(form.stock_available) : 0,
         image_url: form.image_url || null,
         needs_return: !!form.needs_return,
+        no_return_cost: form.no_return_cost ? Number(form.no_return_cost) : 0,
       };
       if (editing) {
         await api.put(`/catalog/${editing}`, payload);
@@ -109,6 +111,7 @@ export default function CatalogPage() {
         stock_available: item.stock_available || 0,
         image_url: item.image_url || null,
         needs_return: !!item.needs_return,
+        no_return_cost: Number(item.no_return_cost) || 0,
         is_active: !item.is_active,
       });
       toast(item.is_active ? "Producto desactivado" : "Producto activado");
@@ -203,6 +206,13 @@ export default function CatalogPage() {
                 className="rounded border-slate-300 text-vento-cyan focus:ring-vento-cyan" />
               Requiere devolución
             </label>
+            {form.needs_return && (
+              <div>
+                <label className="text-sm text-slate-500 block mb-1">Costo por no regresar</label>
+                <input type="number" step="0.01" value={form.no_return_cost} onChange={(e) => setForm({ ...form, no_return_cost: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" />
+              </div>
+            )}
             <div>
               <label className="text-sm text-slate-500 block mb-1">Foto del producto</label>
               <div className="flex items-center gap-3">
@@ -265,6 +275,9 @@ export default function CatalogPage() {
                       )}
                       {item.needs_return && (
                         <span className="inline-block text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded mt-1 font-medium">Requiere devolución</span>
+                      )}
+                      {item.needs_return && Number(item.no_return_cost) > 0 && (
+                        <p className="text-[10px] text-red-500 mt-0.5">Costo no regreso: ${Number(item.no_return_cost).toLocaleString()}</p>
                       )}
                       {!item.is_active && (
                         <span className="text-[10px] text-red-500 font-medium">Desactivado</span>

@@ -38,6 +38,14 @@ router.post("/", authorize("administrador"), ...agendaRules, async (req, res) =>
     const endTime = req.body.end_time ?? req.body.endTime;
     const assignedTo = req.body.assigned_to ?? req.body.assignedTo;
     const category = req.body.category || null;
+    // Validar que start_time sea el mismo día que el evento
+    const { rows: evt } = await query("SELECT date::date AS event_date FROM events WHERE id = $1", [eventId]);
+    if (evt.length === 0) return res.status(404).json({ error: "Evento no encontrado" });
+    const taskDate = new Date(startTime).toISOString().slice(0, 10);
+    const eventDate = new Date(evt[0].event_date).toISOString().slice(0, 10);
+    if (taskDate !== eventDate) {
+      return res.status(400).json({ error: `La fecha de la tarea debe ser el mismo día del evento (${eventDate})` });
+    }
     const { rows } = await query(
       `INSERT INTO agenda_items (event_id, title, description, start_time, end_time, assigned_to, category)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
@@ -146,6 +154,15 @@ router.put("/:id", authorize("administrador"), async (req, res) => {
     const notes = req.body.notes;
     const sortOrder = req.body.sort_order ?? req.body.sortOrder;
     const { rows: old } = await query("SELECT assigned_to, event_id FROM agenda_items WHERE id = $1", [req.params.id]);
+    // Validar fecha si start_time cambió
+    if (startTime) {
+      const { rows: evt } = await query("SELECT date::date AS event_date FROM events WHERE id = $1", [old[0].event_id]);
+      const taskDate = new Date(startTime).toISOString().slice(0, 10);
+      const eventDate = new Date(evt[0].event_date).toISOString().slice(0, 10);
+      if (taskDate !== eventDate) {
+        return res.status(400).json({ error: `La fecha de la tarea debe ser el mismo día del evento (${eventDate})` });
+      }
+    }
 
     const { rows } = await query(
       `UPDATE agenda_items SET

@@ -7,7 +7,7 @@ import { connectDb, query } from "./services/db.js";
 import { setupRedis } from "./services/redis.js";
 import { setupSocketEvents } from "./socket.js";
 import { authenticate, authorize } from "./middleware/auth.js";
-import { notifyAdmins } from "./services/notifications.js";
+import { notifyAdmins, createNotification } from "./services/notifications.js";
 import authRoutes from "./routes/auth.js";
 import eventRoutes from "./routes/events.js";
 import agendaRoutes from "./routes/agenda.js";
@@ -114,7 +114,9 @@ async function start() {
     created_at TIMESTAMPTZ DEFAULT NOW()
   )`);
   await query("ALTER TABLE quote_items ADD COLUMN IF NOT EXISTS needs_return BOOLEAN DEFAULT false");
+  await query("ALTER TABLE quote_items ADD COLUMN IF NOT EXISTS no_return_cost DECIMAL(10,2) DEFAULT 0");
   await query("ALTER TABLE catalog_items ADD COLUMN IF NOT EXISTS needs_return BOOLEAN DEFAULT false");
+  await query("ALTER TABLE catalog_items ADD COLUMN IF NOT EXISTS no_return_cost DECIMAL(10,2) DEFAULT 0");
   await query("UPDATE catalog_items SET needs_return = true WHERE LOWER(category) IN ('loza', 'sillas', 'mesas', 'cubiertos') OR LOWER(name) IN ('loza', 'sillas', 'mesas', 'cubiertos') OR LOWER(category) LIKE '%loza%' OR LOWER(category) LIKE '%silla%' OR LOWER(category) LIKE '%mesa%' OR LOWER(category) LIKE '%cubiert%'");
   await query("ALTER TABLE payments ADD COLUMN IF NOT EXISTS paid_amount DECIMAL(12,2) DEFAULT 0");
   await query("ALTER TABLE payments ADD COLUMN IF NOT EXISTS applied_to UUID REFERENCES payments(id)");
@@ -172,6 +174,34 @@ async function start() {
     }
     console.log("[db] plantillas por defecto insertadas");
   }
+
+  // CRON: Notificar 30 min antes de actividades de agenda/checklist
+  setInterval(async () => {
+    try {
+      const now = new Date();
+      const in30 = new Date(now.getTime() + 30 * 60 * 1000);
+      const nowStr = now.toISOString();
+      const in30Str = in30.toISOString();
+      const { rows: upcoming } = await query(
+        `SELECT a.id, a.title, a.event_id, a.assigned_to, a.start_time, e.name AS event_name
+         FROM agenda_items a
+         JOIN events e ON e.id = a.event_id
+         WHERE a.assigned_to IS NOT NULL
+           AND a.is_completed = false
+           AND a.start_time BETWEEN $1 AND $2`,
+        [nowStr, in30Str]
+      );
+      for (const a of upcoming) {
+        await createNotification({
+          userId: a.assigned_to,
+          eventId: a.event_id,
+          title: "Actividad próxima",
+          body: `"${a.title}" en "${a.event_name}" comienza en 30 min`,
+          type: "agenda",
+        });
+      }
+    } catch (e) { console.error("[cron] error notificar 30min:", e.message); }
+  }, 60000);
 
   // CRON: Payment reminders — check every hour for payments due in next 24h
   setInterval(async () => {

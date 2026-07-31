@@ -31,6 +31,9 @@ export default function EventDetailPage() {
   const [loadingInventory, setLoadingInventory] = useState(false);
   const [editingInvItem, setEditingInvItem] = useState(null);
   const [invEditQty, setInvEditQty] = useState(1);
+  const [returnItem, setReturnItem] = useState(null);
+  const [returnQty, setReturnQty] = useState(1);
+  const [faltantes, setFaltantes] = useState([]);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", date: "", venue: "", description: "", total_budget: "", status: "" });
   const [editSaving, setEditSaving] = useState(false);
@@ -439,6 +442,136 @@ setLoading(false);
         </div>
       )}
 
+      {/* Modal devolución */}
+      {returnItem && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl animate-slide-up space-y-4">
+            <h2 className="text-lg font-bold">Regresar {returnItem.name}</h2>
+            <p className="text-sm text-slate-500">Tomados: {returnItem.llevado} pz</p>
+            <div>
+              <label className="text-sm text-slate-500 block mb-1">Cantidad a regresar</label>
+              <input type="number" value={returnQty} min="0" max={returnItem.llevado} onChange={(e) => setReturnQty(Math.min(Number(e.target.value), returnItem.llevado))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button onClick={async () => {
+                try {
+                  await api.post(`/events/${id}/inventory-movement`, { item_name: returnItem.name, quantity: returnQty, movement_type: 'regresado' });
+                  const faltante = returnItem.llevado - returnQty;
+                  if (faltante > 0) {
+                    const costoUnit = Number(returnItem.no_return_cost) || 0;
+                    setFaltantes([{ name: returnItem.name, taken: returnItem.llevado, returned: returnQty, faltante, cost: faltante * costoUnit, costUnit: costoUnit }]);
+                  } else {
+                    setFaltantes([]);
+                  }
+                  setReturnItem(null);
+                  const res = await api.get(`/events/${id}/inventory`);
+                  setInventory(res);
+                } catch (e) { alert(e.message); }
+              }}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition">
+                Confirmar devolución
+              </button>
+              <button onClick={() => setReturnItem(null)}
+                className="px-4 py-2 border border-slate-200 rounded-lg text-sm hover:bg-slate-50 transition">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal faltantes */}
+      {faltantes.length > 0 && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl animate-slide-up space-y-4">
+            <h2 className="text-lg font-bold text-red-600">Faltantes</h2>
+            <p className="text-sm text-slate-500">Productos no regresados</p>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-slate-400 text-xs border-b">
+                  <th className="pb-2">Producto</th>
+                  <th className="pb-2 text-right">Tomados</th>
+                  <th className="pb-2 text-right">Regresados</th>
+                  <th className="pb-2 text-right">Faltante</th>
+                  <th className="pb-2 text-right">Costo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {faltantes.map((f, i) => (
+                  <tr key={i} className="border-b border-slate-100">
+                    <td className="py-2">{f.name}</td>
+                    <td className="py-2 text-right">{f.taken}</td>
+                    <td className="py-2 text-right">{f.returned}</td>
+                    <td className="py-2 text-right text-red-500 font-medium">{f.faltante}</td>
+                    <td className="py-2 text-right text-red-500 font-medium">${f.cost.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="font-bold">
+                  <td colSpan="4" className="pt-3 text-right">Total faltantes:</td>
+                  <td className="pt-3 text-right text-red-600">${faltantes.reduce((s, f) => s + f.cost, 0).toLocaleString()}</td>
+                </tr>
+              </tfoot>
+            </table>
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => {
+                try {
+                  const docDef = {
+                    pageSize: "A4",
+                    pageMargins: [40, 50, 40, 50],
+                    content: [
+                      { text: "REPORTE DE FALTANTES", fontSize: 20, bold: true, color: "#DC2626", margin: [0, 0, 0, 16] },
+                      { text: `Evento: ${event?.name || ""}`, fontSize: 10, margin: [0, 0, 0, 4], color: "#334155" },
+                      { text: `Fecha: ${event?.date ? new Date(event.date).toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" }) : ""}`, fontSize: 10, margin: [0, 0, 0, 16], color: "#64748B" },
+                      { table: { headerRows: 1, widths: ["*", 50, 60, 50, 60], body: [
+                        [
+                          { text: "Producto", style: "tableHeader" },
+                          { text: "Tomados", style: "tableHeader", alignment: "center" },
+                          { text: "Regresados", style: "tableHeader", alignment: "center" },
+                          { text: "Faltante", style: "tableHeader", alignment: "center" },
+                          { text: "Costo", style: "tableHeader", alignment: "right" },
+                        ],
+                        ...faltantes.map(f => [
+                          f.name,
+                          { text: f.taken.toString(), alignment: "center" },
+                          { text: f.returned.toString(), alignment: "center" },
+                          { text: f.faltante.toString(), alignment: "center", color: "#DC2626", bold: true },
+                          { text: `$${f.cost.toLocaleString()}`, alignment: "right", color: "#DC2626" },
+                        ]),
+                        [
+                          { text: "Total", colSpan: 4, alignment: "right", bold: true, fontSize: 12 },
+                          {},
+                          {},
+                          {},
+                          { text: `$${faltantes.reduce((s, f) => s + f.cost, 0).toLocaleString()}`, alignment: "right", bold: true, fontSize: 12, color: "#DC2626" },
+                        ],
+                      ]}, layout: {
+                        hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => "#E2E8F0",
+                        paddingLeft: () => 8, paddingRight: () => 8, paddingTop: () => 6, paddingBottom: () => 6,
+                        fillColor: (i) => i === 0 ? "#0F172A" : null,
+                      }},
+                      { text: `\nGenerado por Vento — ${new Date().toLocaleString("es-MX")}`, fontSize: 8, color: "#94A3B8", margin: [0, 20, 0, 0] },
+                    ],
+                    styles: { tableHeader: { bold: true, fontSize: 9, color: "#FFFFFF" } },
+                    defaultStyle: { fontSize: 9, color: "#334155", font: "Roboto" },
+                  };
+                  pdfMake.createPdf(docDef).download(`Faltantes_${event?.name || "evento"}.pdf`);
+                } catch (e) { console.error("PDF faltantes error:", e); }
+              }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition">
+                Descargar PDF faltantes
+              </button>
+              <button onClick={() => setFaltantes([])}
+                className="px-4 py-2 border border-slate-200 rounded-lg text-sm hover:bg-slate-50 transition">
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal editar evento */}
       {showEditForm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
@@ -546,7 +679,7 @@ setLoading(false);
                       className="text-xs px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition disabled:opacity-40 disabled:cursor-not-allowed">
                       Llevar a montaje
                     </button>
-                    <button onClick={async () => { try { await api.post(`/events/${id}/inventory-movement`, { item_name: item.name, quantity: item.llevado, movement_type: 'regresado' }); const res = await api.get(`/events/${id}/inventory`); setInventory(res); } catch (e) { alert(e.message); } }}
+                    <button onClick={() => { setReturnItem(item); setReturnQty(item.llevado); }}
                       disabled={item.llevado <= 0}
                       className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
                       Regresar

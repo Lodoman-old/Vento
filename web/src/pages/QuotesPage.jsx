@@ -66,7 +66,7 @@ export default function QuotesPage() {
         ...prev,
         selectedItems: [
           ...prev.selectedItems,
-          { item_name: catalogItem.name, unit_price: Number(catalogItem.unit_price), quantity: 1, needs_return: false },
+          { item_name: catalogItem.name, unit_price: Number(catalogItem.unit_price), quantity: 1, needs_return: !!catalogItem.needs_return, no_return_cost: Number(catalogItem.no_return_cost) || 0 },
         ],
       };
     });
@@ -132,6 +132,8 @@ export default function QuotesPage() {
           item_name: i.item_name,
           unit_price: Number(i.unit_price),
           quantity: i.quantity,
+          needs_return: !!i.needs_return,
+          no_return_cost: Number(i.no_return_cost) || 0,
         })),
     });
     setEditingQuote(full);
@@ -232,11 +234,19 @@ export default function QuotesPage() {
           { text: "Subtotal", style: "tableHeader", alignment: "right" },
         ],
         ...full.items.map((i) => [
-          i.item_name,
+          i.is_supplier_cost ? `${i.item_name} (Proveedor)` : i.item_name,
           { text: i.quantity.toString(), alignment: "center" },
           { text: fm(i.unit_price), alignment: "right" },
           { text: fm(i.subtotal), alignment: "right" },
         ]),
+        ...(full.items.some(i => i.needs_return && Number(i.no_return_cost) > 0) ? [
+          [
+            { text: "Costo por no regresar", colSpan: 3, alignment: "right", italics: true, fontSize: 9, color: "#DC2626" },
+            {},
+            {},
+            { text: fm(full.items.filter(i => i.needs_return).reduce((s, i) => s + Number(i.no_return_cost || 0), 0)), italics: true, alignment: "right", fontSize: 9, color: "#DC2626" },
+          ],
+        ] : []),
         [
           { text: "Total", colSpan: 3, alignment: "right", bold: true, fontSize: 12, color: "#0F172A" },
           {},
@@ -726,9 +736,12 @@ function QuoteDetail({ quoteId }) {
       const methodLabels = { efectivo: "Efectivo", transferencia: "Transferencia", tarjeta: "Tarjeta", deposito: "Depósito" };
       const p = lastPaidPayment;
 
-      const remainingAfterPayment = Number(p.quote_total) - Number(p.amount);
       // Calculate how much was already paid before this payment
-      const priorPaid = payments.reduce((s, pay) => s + (pay.method === "enganche" || pay.method === "mensualidad" ? 0 : Number(pay.amount)), 0);
+      const priorPaid = payments.reduce((s, pay) => {
+        if (pay.method === "enganche" || pay.method === "mensualidad") return s;
+        if (pay.id === p.id) return s; // exclude current payment
+        return s + Number(pay.amount);
+      }, 0);
 
       const docDefinition = {
         pageSize: "A4",

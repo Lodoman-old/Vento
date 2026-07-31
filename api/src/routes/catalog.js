@@ -56,10 +56,11 @@ router.post("/", authorize("administrador"), ...catalogRules, async (req, res) =
     const stockAvailable = req.body.stock_available ?? req.body.stockAvailable;
     const imageUrl = req.body.image_url ?? req.body.imageUrl;
     const needsReturn = req.body.needs_return ?? req.body.needsReturn ?? false;
+    const noReturnCost = req.body.no_return_cost ?? req.body.noReturnCost ?? 0;
     const { rows } = await query(
-      `INSERT INTO catalog_items (name, category, unit_price, unit_type, description, stock_available, image_url, needs_return)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [name, category, unitPrice, unitType, description, stockAvailable, imageUrl, needsReturn]
+      `INSERT INTO catalog_items (name, category, unit_price, unit_type, description, stock_available, image_url, needs_return, no_return_cost)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [name, category, unitPrice, unitType, description, stockAvailable, imageUrl, needsReturn, noReturnCost]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -69,8 +70,8 @@ router.post("/", authorize("administrador"), ...catalogRules, async (req, res) =
 
 router.put("/:id", authorize("administrador"), async (req, res) => {
   try {
-    const allowed = ["name", "category", "unit_price", "unit_type", "description", "stock_available", "is_active", "image_url", "needs_return"];
-    const fieldMap = { name: "name", category: "category", unit_price: "unit_price", unitPrice: "unit_price", unit_type: "unit_type", unitType: "unit_type", description: "description", stock_available: "stock_available", stockAvailable: "stock_available", is_active: "is_active", isActive: "is_active", image_url: "image_url", imageUrl: "image_url", needs_return: "needs_return", needsReturn: "needs_return" };
+    const allowed = ["name", "category", "unit_price", "unit_type", "description", "stock_available", "is_active", "image_url", "needs_return", "no_return_cost"];
+    const fieldMap = { name: "name", category: "category", unit_price: "unit_price", unitPrice: "unit_price", unit_type: "unit_type", unitType: "unit_type", description: "description", stock_available: "stock_available", stockAvailable: "stock_available", is_active: "is_active", isActive: "is_active", image_url: "image_url", imageUrl: "image_url", needs_return: "needs_return", needsReturn: "needs_return", no_return_cost: "no_return_cost", noReturnCost: "no_return_cost" };
     const sets = [];
     const params = [];
     let idx = 1;

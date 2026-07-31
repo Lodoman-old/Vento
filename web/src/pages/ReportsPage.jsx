@@ -60,13 +60,15 @@ export default function ReportsPage() {
         body { font-family: Arial, sans-serif; font-size: 12px; padding: 20px; }
         table { width: 100%; border-collapse: collapse; margin: 10px 0; }
         th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; font-size: 11px; }
-        th { background: #0F172A; color: white; }
+        th { background: #0F172A; color: #D4A853; }
         h2 { color: #0F172A; margin-top: 20px; }
+        h2::before { content: "⬥ "; color: #D4A853; }
         .badge { padding: 2px 6px; border-radius: 10px; font-size: 10px; }
         .badge-green { background: #dcfce7; color: #166534; }
         .badge-yellow { background: #fef9c3; color: #854d0e; }
         .badge-blue { background: #dbeafe; color: #1e40af; }
         img { max-width: 80px; max-height: 80px; object-fit: cover; border-radius: 4px; }
+        tfoot td { border-top: 2px solid #D4A853; font-weight: bold; }
         @media print { body { padding: 0; } }
       </style></head><body>${content}</body></html>
     `);
@@ -79,7 +81,7 @@ export default function ReportsPage() {
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">Reportes</h1>
         <button onClick={handlePrint}
-          className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm hover:bg-slate-50 transition">
+          className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition">
           Imprimir
         </button>
       </div>
@@ -88,7 +90,7 @@ export default function ReportsPage() {
         {tabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`px-3 py-2 text-sm font-medium border-b-2 transition ${
-              tab === t.id ? "border-vento-cyan text-vento-cyan" : "border-transparent text-slate-400 hover:text-slate-600"
+              tab === t.id ? "border-amber-500 text-amber-700" : "border-transparent text-slate-400 hover:text-slate-600"
             }`}>
             {t.label}
           </button>
@@ -108,7 +110,7 @@ export default function ReportsPage() {
               <input type="date" value={end} onChange={(e) => setEnd(e.target.value)}
                 className="px-2 py-1 border border-slate-200 rounded text-sm" />
             </div>
-            <h2 className="text-lg font-bold mb-3">Eventos del {fmDate(start)} al {fmDate(end)}</h2>
+            <h2 className="text-lg font-bold mb-3 text-vento-navy"><span className="text-amber-500 mr-2">⬥</span>Eventos del {fmDate(start)} al {fmDate(end)}</h2>
             {events.length === 0 && <p className="text-sm text-slate-400">Sin eventos en este periodo</p>}
             <table>
               <thead>
@@ -146,7 +148,7 @@ export default function ReportsPage() {
 
         {tab === "clients" && (
           <div>
-            <h2 className="text-lg font-bold mb-3">Clientes</h2>
+            <h2 className="text-lg font-bold mb-3 text-vento-navy"><span className="text-amber-500 mr-2">⬥</span>Clientes</h2>
             {clients.length === 0 && <p className="text-sm text-slate-400">Sin clientes registrados</p>}
             <table>
               <thead>
@@ -183,13 +185,13 @@ export default function ReportsPage() {
               {["", ...categories].map((c) => (
                 <button key={c} onClick={() => setCatFilter(c)}
                   className={`text-xs px-2 py-0.5 rounded-full capitalize ${
-                    catFilter === c ? "bg-vento-cyan text-vento-navy" : "bg-slate-100 text-slate-500"
+                    catFilter === c ? "bg-amber-500 text-white" : "bg-slate-100 text-slate-500"
                   }`}>
                   {c || "Todas"}
                 </button>
               ))}
             </div>
-            <h2 className="text-lg font-bold mb-3">Proveedores</h2>
+            <h2 className="text-lg font-bold mb-3 text-vento-navy"><span className="text-amber-500 mr-2">⬥</span>Proveedores</h2>
             {suppliers.length === 0 && <p className="text-sm text-slate-400">Sin proveedores</p>}
             <table>
               <thead>
@@ -219,7 +221,7 @@ export default function ReportsPage() {
               {["", ...categories].map((c) => (
                 <button key={c} onClick={() => setCatFilter(c)}
                   className={`text-xs px-2 py-0.5 rounded-full capitalize ${
-                    catFilter === c ? "bg-vento-cyan text-vento-navy" : "bg-slate-100 text-slate-500"
+                    catFilter === c ? "bg-amber-500 text-white" : "bg-slate-100 text-slate-500"
                   }`}>
                   {c || "Todas"}
                 </button>
@@ -232,17 +234,17 @@ export default function ReportsPage() {
                   {item.image_url ? (
                     <img src={item.image_url} alt={item.name} className="w-full h-36 object-cover" />
                   ) : (
-                    <div className="w-full h-36 bg-slate-100 flex items-center justify-center text-slate-300 text-3xl">📦</div>
+                    <div className="w-full h-36 bg-slate-100 flex items-center justify-center text-slate-300 text-2xl font-bold">[Sin foto]</div>
                   )}
                   <div className="p-2">
                     <p className="text-sm font-medium">{item.name}</p>
                     <p className="text-xs text-slate-400 capitalize">{item.category}</p>
-                    <p className="text-vento-cyan font-bold text-sm">{fm(item.unit_price)}</p>
+                    <p className="text-amber-600 font-bold text-sm">{fm(item.unit_price)}</p>
                     {item.stock_available != null && (
                       <p className="text-[10px] text-slate-400">Stock: {item.stock_available}</p>
                     )}
                     <div className="mt-1 flex items-center gap-1">
-                      <input type="checkbox" className="accent-vento-cyan" />
+                      <input type="checkbox" className="accent-amber-500" />
                       <span className="text-[10px] text-slate-400">Seleccionar</span>
                     </div>
                   </div>
@@ -262,24 +264,24 @@ export default function ReportsPage() {
               <input type="date" value={end} onChange={(e) => setEnd(e.target.value)}
                 className="px-2 py-1 border border-slate-200 rounded text-sm" />
             </div>
-            <h2 className="text-lg font-bold mb-3">Resumen financiero</h2>
+            <h2 className="text-lg font-bold mb-3 text-vento-navy"><span className="text-amber-500 mr-2">⬥</span>Resumen financiero</h2>
             {!financial && <p className="text-sm text-slate-400">Cargando...</p>}
             {financial && (
               <div className="space-y-6">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-white rounded-xl border border-slate-200 p-4">
+                  <div className="bg-white rounded-xl border-l-4 border-l-amber-500 border border-slate-200 p-4">
                     <p className="text-xs text-slate-400">Pagos recibidos</p>
                     <p className="text-2xl font-bold text-green-600">{financial.payment_count}</p>
                   </div>
-                  <div className="bg-white rounded-xl border border-slate-200 p-4">
+                  <div className="bg-white rounded-xl border-l-4 border-l-amber-500 border border-slate-200 p-4">
                     <p className="text-xs text-slate-400">Total recibido</p>
                     <p className="text-2xl font-bold text-vento-navy">{fm(financial.total_received)}</p>
                   </div>
-                  <div className="bg-white rounded-xl border border-slate-200 p-4">
+                  <div className="bg-white rounded-xl border-l-4 border-l-amber-500 border border-slate-200 p-4">
                     <p className="text-xs text-slate-400">Cotizaciones con pago</p>
-                    <p className="text-2xl font-bold text-vento-cyan">{financial.quotes_with_payment}</p>
+                    <p className="text-2xl font-bold text-amber-600">{financial.quotes_with_payment}</p>
                   </div>
-                  <div className="bg-white rounded-xl border border-slate-200 p-4">
+                  <div className="bg-white rounded-xl border-l-4 border-l-amber-500 border border-slate-200 p-4">
                     <p className="text-xs text-slate-400">Total cotizado</p>
                     <p className="text-2xl font-bold text-amber-600">{fm(financial.total_quoted)}</p>
                   </div>

@@ -119,6 +119,15 @@ router.post("/", authorize("administrador"), async (req, res) => {
     const supplierId = req.body.supplier_id || req.body.supplierId;
     const budgetAmount = req.body.budget_amount ?? req.body.budgetAmount;
     const arrivalTime = req.body.arrival_time ?? req.body.arrivalTime;
+    // Validar arrival_time contra fecha del evento
+    if (arrivalTime) {
+      const { rows: evt } = await query("SELECT date::date AS event_date FROM events WHERE id = $1", [eventId]);
+      const supDate = new Date(arrivalTime).toISOString().slice(0, 10);
+      const eventDate = new Date(evt[0].event_date).toISOString().slice(0, 10);
+      if (supDate !== eventDate) {
+        return res.status(400).json({ error: `La fecha de llegada debe ser el mismo día del evento (${eventDate})` });
+      }
+    }
     const { rows } = await query(
       `INSERT INTO event_suppliers (event_id, supplier_id, budget_amount, arrival_time)
        VALUES ($1, $2, $3, $4) RETURNING *`,
@@ -173,6 +182,22 @@ router.patch("/:id", async (req, res) => {
     }
 
     if (fields.length === 0) return res.status(400).json({ error: "Sin campos para actualizar" });
+
+    // Validar fecha de llegada si se está actualizando
+    if (req.body.arrival_time !== undefined || req.body.arrivalTime !== undefined) {
+      const { rows: esCheck } = await query("SELECT event_id FROM event_suppliers WHERE id = $1", [id]);
+      if (esCheck.length > 0) {
+        const { rows: evt } = await query("SELECT date::date AS event_date FROM events WHERE id = $1", [esCheck[0].event_id]);
+        const arrivalVal = req.body.arrival_time ?? req.body.arrivalTime;
+        if (arrivalVal) {
+          const supDate = new Date(arrivalVal).toISOString().slice(0, 10);
+          const eventDate = new Date(evt[0].event_date).toISOString().slice(0, 10);
+          if (supDate !== eventDate) {
+            return res.status(400).json({ error: `La fecha de llegada debe ser el mismo día del evento (${eventDate})` });
+          }
+        }
+      }
+    }
 
     values.push(id);
     const { rows } = await query(

@@ -121,6 +121,7 @@ router.post("/", authorize("administrador"), ...quoteRules, async (req, res) => 
       unitPrice: i.unit_price ?? i.unitPrice,
       quantity: i.quantity,
       needsReturn: i.needs_return ?? i.needsReturn ?? false,
+      noReturnCost: i.no_return_cost ?? i.noReturnCost ?? 0,
     });
     const userTotal = items.reduce((sum, i) => sum + (i.quantity || 1) * (normalizeItem(i).unitPrice || 0), 0);
 
@@ -145,9 +146,9 @@ router.post("/", authorize("administrador"), ...quoteRules, async (req, res) => 
     for (const raw of items) {
       const item = normalizeItem(raw);
       await query(
-        `INSERT INTO quote_items (quote_id, item_name, quantity, unit_price, is_supplier_cost, needs_return)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [quoteId, item.itemName, item.quantity, item.unitPrice, false, item.needsReturn]
+        `INSERT INTO quote_items (quote_id, item_name, quantity, unit_price, is_supplier_cost, needs_return, no_return_cost)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [quoteId, item.itemName, item.quantity, item.unitPrice, false, item.needsReturn, item.noReturnCost]
       );
     }
     for (const sup of supplierCosts) {
@@ -254,6 +255,7 @@ router.put("/:id", authorize("administrador"), ...quoteUpdateRules, async (req, 
       unitPrice: i.unit_price ?? i.unitPrice,
       quantity: i.quantity,
       needsReturn: i.needs_return ?? i.needsReturn ?? false,
+      noReturnCost: i.no_return_cost ?? i.noReturnCost ?? 0,
     });
     const userTotal = items.reduce((sum, i) => sum + (i.quantity || 1) * (normalizeItem(i).unitPrice || 0), 0);
 
@@ -278,9 +280,9 @@ router.put("/:id", authorize("administrador"), ...quoteUpdateRules, async (req, 
     for (const raw of items) {
       const item = normalizeItem(raw);
       await query(
-        `INSERT INTO quote_items (quote_id, item_name, quantity, unit_price, is_supplier_cost, needs_return)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [req.params.id, item.itemName, item.quantity, item.unitPrice, false, item.needsReturn]
+        `INSERT INTO quote_items (quote_id, item_name, quantity, unit_price, is_supplier_cost, needs_return, no_return_cost)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [req.params.id, item.itemName, item.quantity, item.unitPrice, false, item.needsReturn, item.noReturnCost]
       );
     }
     for (const sup of supplierCosts) {
