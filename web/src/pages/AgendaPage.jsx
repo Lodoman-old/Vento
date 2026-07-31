@@ -159,7 +159,7 @@ export default function AgendaPage() {
 
       {/* Modal crear/editar */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowForm(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
           <form onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}
             className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl animate-slide-up space-y-4">
             <div className="flex items-center justify-between">

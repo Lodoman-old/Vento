@@ -441,7 +441,7 @@ setLoading(false);
 
       {/* Modal editar evento */}
       {showEditForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowEditForm(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
           <form onClick={(e) => e.stopPropagation()} onSubmit={async (e) => {
             e.preventDefault();
             setEditSaving(true);

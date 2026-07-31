@@ -127,7 +127,7 @@ export default function EventsPage() {
 
       {/* Formulario crear/editar */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowForm(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
           <form onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}
             className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl animate-slide-up space-y-4">
             <h2 className="text-lg font-bold">{editing ? "Editar evento" : "Nuevo evento"}</h2>
@@ -180,7 +180,7 @@ export default function EventsPage() {
 
       {/* Confirmar eliminación */}
       {deleteTarget && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={() => setDeleteTarget(null)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
           <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl animate-slide-up text-center space-y-4">
             <p className="text-lg font-semibold">¿Eliminar evento?</p>
             <p className="text-sm text-slate-500">Esta acción no se puede deshacer.</p>
@@ -200,7 +200,7 @@ export default function EventsPage() {
 
       {/* Selector de status */}
       {statusTarget && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={() => setStatusTarget(null)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
           <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl animate-slide-up text-center space-y-3">
             <p className="text-lg font-semibold">Cambiar estado</p>
             {["borrador", "activo", "completado", "cancelado"].map((s) => (

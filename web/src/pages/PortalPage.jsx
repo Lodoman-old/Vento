@@ -196,6 +196,20 @@ export default function PortalPage() {
                     "bg-slate-100 text-slate-600"
                   }`}>{q.status}</span>
                 </div>
+                {q.status === "enviado" && (
+                  <button onClick={async () => {
+                    try {
+                      await api.patch(`/quotes/${q.id}/status`, { status: "aceptado" });
+                      const res = await api.get("/events?page=1&limit=1");
+                      const events = res.data || res;
+                      if (events.length > 0) setEvent(events[0]);
+                      window.location.reload();
+                    } catch (e) { alert("Error: " + e.message); }
+                  }}
+                    className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition">
+                    Aceptar cotización
+                  </button>
+                )}
               </div>
               {q.items && q.items.length > 0 && (
                 <table className="w-full text-xs">

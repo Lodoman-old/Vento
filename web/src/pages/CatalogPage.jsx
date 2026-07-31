@@ -155,7 +155,7 @@ export default function CatalogPage() {
 
       {/* Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowForm(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
           <form onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}
             className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl animate-slide-up space-y-4">
             <h2 className="text-lg font-bold">{editing ? "Editar producto" : "Nuevo producto"}</h2>
@@ -289,7 +289,7 @@ export default function CatalogPage() {
       ))}
 
       {previewImg && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 animate-fade-in" onClick={() => setPreviewImg(null)}>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
           <div onClick={(e) => e.stopPropagation()} className="relative max-w-2xl max-h-[90vh] mx-4">
             <img src={imgSrc(previewImg)} alt="preview" className="w-full h-auto max-h-[85vh] object-contain rounded-xl shadow-2xl" />
             <button onClick={() => setPreviewImg(null)}

@@ -439,7 +439,7 @@ export default function QuotesPage() {
 
       {/* Formulario */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={() => { setShowForm(false); setEditingQuote(null); setForm({ client_name: "", client_phone: "", selectedItems: [] }); }}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
           <form onClick={(e) => e.stopPropagation()} onSubmit={handleCreate}
             className="bg-white rounded-2xl shadow-xl animate-slide-up w-full max-w-4xl max-h-[90vh] flex flex-col">
             <div className="p-5 pb-0">
@@ -569,11 +569,11 @@ export default function QuotesPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2 ml-4">
-                {user?.role === "administrador" && q.status === "borrador" && (
+                {user?.role === "administrador" && (q.status === "borrador" || q.status === "enviado") && (
                   <>
-                    <button onClick={() => updateStatus(q.id, "enviado")}
+                    <button onClick={() => { updateStatus(q.id, "enviado"); if (q.client_phone) shareWhatsApp(q); }}
                       className="text-[10px] px-2 py-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition">
-                      Enviar
+                      Enviar{q.client_phone ? " + WhatsApp" : ""}
                     </button>
                     <button onClick={() => updateStatus(q.id, "aceptado")}
                       className="text-[10px] px-2 py-1 bg-green-500 text-white rounded-full hover:bg-green-600 transition">
@@ -591,17 +591,11 @@ export default function QuotesPage() {
                     Editar
                   </button>
                 )}
-                {user?.role === "administrador" && (q.status === "enviado" || q.status === "aceptado") && (
-                  <>
-                    <button onClick={() => shareWhatsApp(q)}
-                      className="text-[10px] px-2 py-1 bg-green-500 text-white rounded-full hover:bg-green-600 transition">
-                      Reenviar WhatsApp
-                    </button>
-                    <button onClick={() => updateStatus(q.id, "borrador")}
-                      className="text-[10px] px-2 py-1 bg-amber-500 text-white rounded-full hover:bg-amber-600 transition">
-                      Reabrir
-                    </button>
-                  </>
+                {user?.role === "administrador" && q.status === "aceptado" && (
+                  <button onClick={() => updateStatus(q.id, "borrador")}
+                    className="text-[10px] px-2 py-1 bg-amber-500 text-white rounded-full hover:bg-amber-600 transition">
+                    Reabrir
+                  </button>
                 )}
                 {user?.role === "administrador" && (
                   <button onClick={() => setDeleteConfirm(q.id)}
@@ -1009,7 +1003,7 @@ function QuoteDetail({ quoteId }) {
       </div>
 
       {lastPaidPayment && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={() => setLastPaidPayment(null)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
           <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl animate-slide-up text-center space-y-4">
             <p className="text-lg font-semibold">Pago registrado</p>
             <p className="text-sm text-slate-500">¿Deseas generar el recibo de pago en PDF?</p>

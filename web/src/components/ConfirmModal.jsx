@@ -1,6 +1,6 @@
 export default function ConfirmModal({ message, description, onConfirm, onCancel, confirmLabel = "Eliminar", confirmClass = "bg-red-500 hover:bg-red-600" }) {
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={onCancel}>
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
       <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl animate-slide-up text-center space-y-4">
         <p className="text-lg font-semibold">{message}</p>
         {description && <p className="text-sm text-slate-500">{description}</p>}

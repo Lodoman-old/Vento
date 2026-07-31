@@ -19,7 +19,7 @@ router.get("/", checkEventAccess, async (req, res) => {
        FROM agenda_items a
        LEFT JOIN users u ON u.id = a.assigned_to
        WHERE a.event_id = $1
-       ORDER BY a.sort_order, a.start_time`,
+       ORDER BY a.start_time ASC`,
       [eventId]
     );
     res.json(rows);

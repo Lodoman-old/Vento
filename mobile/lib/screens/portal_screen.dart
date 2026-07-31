@@ -128,11 +128,29 @@ class _PortalScreenState extends State<PortalScreen> {
                   ..._quotes.map((q) => ExpansionTile(
                     title: Text(q.clientName ?? 'Cotización', style: const TextStyle(fontSize: 14)),
                     subtitle: Text('\$${q.total.toStringAsFixed(2)} — ${q.status}', style: const TextStyle(fontSize: 12)),
-                    children: q.items.map((item) => ListTile(
-                      dense: true,
-                      title: Text(item.itemName, style: const TextStyle(fontSize: 13)),
-                      trailing: Text('${item.quantity} x \$${item.unitPrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
-                    )).toList(),
+                    children: [
+                      ...q.items.map((item) => ListTile(
+                        dense: true,
+                        title: Text(item.itemName, style: const TextStyle(fontSize: 13)),
+                        trailing: Text('${item.quantity} x \$${item.unitPrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
+                      )),
+                      if (q.status == 'enviado')
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: SizedBox(width: double.infinity, child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                            onPressed: () async {
+                              try {
+                                await ApiService().patch('/quotes/${q.id}/status', body: {'status': 'aceptado'});
+                                _load();
+                              } catch (e) {
+                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')));
+                              }
+                            },
+                            child: const Text('Aceptar cotización'),
+                          )),
+                        ),
+                    ],
                   )),
                 ],
               ]),

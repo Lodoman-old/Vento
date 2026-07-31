@@ -212,6 +212,11 @@ router.patch("/:id/status", authorize("administrador"), async (req, res) => {
       await generatePaymentPlan(req.params.id, newTotal, old[0].event_id);
     }
 
+    // Si se acepta la cotización, activar el evento
+    if (status === "aceptado" && old[0].status !== "aceptado") {
+      await query("UPDATE events SET status = 'activo', updated_at = NOW() WHERE id = $1", [old[0].event_id]);
+    }
+
     if (status !== old[0].status) {
       const statusLabels = { enviado: "Enviada", aceptado: "Aceptada", rechazado: "Rechazada", borrador: "Reabierta" };
       await createNotification({
