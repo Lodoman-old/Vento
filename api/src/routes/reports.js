@@ -67,6 +67,16 @@ router.get("/suppliers", authorize("administrador"), async (req, res) => {
   }
 });
 
+// GET /api/reports/supplier-categories
+router.get("/supplier-categories", authorize("administrador"), async (req, res) => {
+  try {
+    const { rows } = await query("SELECT DISTINCT category FROM supplier_catalog ORDER BY category");
+    res.json(rows.map(r => r.category));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/reports/catalog?category=
 router.get("/catalog", authorize("administrador"), async (req, res) => {
   try {
