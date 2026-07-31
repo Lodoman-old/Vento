@@ -137,24 +137,75 @@ class _PortalScreenState extends State<PortalScreen> {
                       if (q.status == 'enviado')
                         Padding(
                           padding: const EdgeInsets.all(12),
-                          child: SizedBox(width: double.infinity, child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-                            onPressed: () async {
-                              try {
-                                await ApiService().patch('/quotes/${q.id}/status', body: {'status': 'aceptado'});
-                                _load();
-                              } catch (e) {
-                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')));
-                              }
-                            },
-                            child: const Text('Aceptar cotización'),
-                          )),
+                          child: Column(children: [
+                            SizedBox(width: double.infinity, child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.white),
+                              onPressed: () => _showChangeRequestDialog(q),
+                              child: const Text('Solicitar cambio'),
+                            )),
+                            const SizedBox(height: 8),
+                            SizedBox(width: double.infinity, child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                              onPressed: () async {
+                                try {
+                                  await ApiService().patch('/quotes/${q.id}/status', body: {'status': 'aceptado'});
+                                  _load();
+                                } catch (e) {
+                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')));
+                                }
+                              },
+                              child: const Text('Aceptar cotización'),
+                            )),
+                          ]),
                         ),
                     ],
                   )),
                 ],
               ]),
             ),
+    );
+  }
+
+  void _showChangeRequestDialog(Quote q) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(children: [
+          Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 24),
+          SizedBox(width: 8),
+          Text('Solicitar cambio', style: TextStyle(fontSize: 18)),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Describe los cambios que deseas:', style: TextStyle(fontSize: 13, color: Colors.black87)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: controller,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              hintText: 'Ej: Cambiar cantidades, agregar productos, solicitar reunión...',
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.all(12),
+            ),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.white),
+            onPressed: () async {
+              try {
+                await ApiService().post('/quotes/${q.id}/request-change', body: {'description': controller.text});
+                if (mounted) Navigator.pop(ctx);
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Solicitud enviada al organizador')));
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')));
+              }
+            },
+            child: const Text('Enviar solicitud'),
+          ),
+        ],
+      ),
     );
   }
 

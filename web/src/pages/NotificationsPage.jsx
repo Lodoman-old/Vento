@@ -11,6 +11,7 @@ const typeIcons = {
   evento: "📅",
   cliente: "👤",
   general: "🔔",
+  cambio_solicitado: "⚠️",
 };
 
 export default function NotificationsPage() {
@@ -103,11 +104,15 @@ export default function NotificationsPage() {
 
         {notifications.map((n) => (
           <div key={n.id}
-            className={`bg-white rounded-xl border px-4 py-3 flex items-start gap-3 transition
-              ${n.is_read ? "border-slate-200" : "border-vento-cyan/30 bg-vento-cyan/[0.02]"}`}>
-            <span className="text-lg mt-0.5">{typeIcons[n.type] || typeIcons.general}</span>
+            className={`rounded-xl border px-4 py-3 flex items-start gap-3 transition
+              ${n.type === "cambio_solicitado"
+                ? "border-red-300 bg-red-50"
+                : n.is_read
+                  ? "border-slate-200 bg-white"
+                  : "border-vento-cyan/30 bg-vento-cyan/[0.02]"}`}>
+            <span className={`text-lg mt-0.5 ${n.type === "cambio_solicitado" ? "text-red-500" : ""}`}>{typeIcons[n.type] || typeIcons.general}</span>
             <div className="flex-1 min-w-0">
-              <p className={`text-sm ${n.is_read ? "text-slate-600" : "font-semibold text-slate-800"}`}>
+              <p className={`text-sm ${n.is_read ? "text-slate-600" : "font-semibold text-slate-800"} ${n.type === "cambio_solicitado" ? "text-red-700 font-bold" : ""}`}>
                 {n.title}
               </p>
               <p className="text-xs text-slate-400 mt-0.5">{n.body}</p>

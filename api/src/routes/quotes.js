@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authenticate, authorize, checkEventAccess } from "../middleware/auth.js";
 import { quoteRules, quoteUpdateRules } from "../middleware/validate.js";
 import { query } from "../services/db.js";
-import { createNotification } from "../services/notifications.js";
+import { createNotification, notifyAdmins } from "../services/notifications.js";
 
 async function generatePaymentPlan(quoteId, total, eventId) {
   if (total <= 0) return;
@@ -324,6 +324,32 @@ router.post("/:id/regenerate-payments", authorize("administrador"), async (req, 
 
     const { rows: payments } = await query("SELECT * FROM payments WHERE quote_id = $1 ORDER BY payment_date", [req.params.id]);
     res.json(payments);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/quotes/:id/request-change — cliente solicita cambios
+router.post("/:id/request-change", async (req, res) => {
+  try {
+    const { rows: quote } = await query(
+      "SELECT id, event_id, client_name, client_phone FROM quotes WHERE id = $1",
+      [req.params.id]
+    );
+    if (quote.length === 0) return res.status(404).json({ error: "Cotización no encontrada" });
+
+    const description = req.body.description || "";
+    const eventId = quote[0].event_id;
+    const clientName = quote[0].client_name || "Cliente";
+
+    await notifyAdmins({
+      eventId,
+      title: `🔴 Solicitud de cambio — ${clientName}`,
+      body: description || "El cliente solicita una reunión para revisar cambios",
+      type: "cambio_solicitado",
+    });
+
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -13,6 +13,7 @@ export default function PortalPage() {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("overview");
+  const [requestChange, setRequestChange] = useState({ show: false, description: "", quote: null });
 
   useEffect(() => {
     if (!user || user.role !== "cliente") return;
@@ -182,6 +183,35 @@ export default function PortalPage() {
         </div>
       )}
 
+      {/* Modal solicitar cambio */}
+      {requestChange.show && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl animate-slide-up space-y-4">
+            <h2 className="text-lg font-bold text-amber-600">Solicitar cambio</h2>
+            <p className="text-sm text-slate-500">Describe los cambios que deseas en la cotización o solicita una reunión para revisarlos:</p>
+            <textarea value={requestChange.description} onChange={(e) => setRequestChange({ ...requestChange, description: e.target.value })}
+              placeholder="Ej: Quiero cambiar la cantidad de sillas de 50 a 80, y agregar 2 mesas extra. Prefiero reunirme el viernes."
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-amber-500 min-h-[120px]" />
+            <div className="flex gap-2 pt-2">
+              <button onClick={async () => {
+                try {
+                  await api.post(`/quotes/${requestChange.quote.id}/request-change`, { description: requestChange.description });
+                  setRequestChange({ show: false, description: "", quote: null });
+                  alert("Solicitud enviada. El organizador recibirá una notificación.");
+                } catch (e) { alert("Error: " + e.message); }
+              }}
+                className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition">
+                Enviar solicitud
+              </button>
+              <button onClick={() => setRequestChange({ show: false, description: "", quote: null })}
+                className="px-4 py-2 border border-slate-200 rounded-lg text-sm hover:bg-slate-50 transition">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {tab === "quotes" && (
         <div className="space-y-3">
           {quotes.map((q) => (
@@ -197,18 +227,24 @@ export default function PortalPage() {
                   }`}>{q.status}</span>
                 </div>
                 {q.status === "enviado" && (
-                  <button onClick={async () => {
-                    try {
-                      await api.patch(`/quotes/${q.id}/status`, { status: "aceptado" });
-                      const res = await api.get("/events?page=1&limit=1");
-                      const events = res.data || res;
-                      if (events.length > 0) setEvent(events[0]);
-                      window.location.reload();
-                    } catch (e) { alert("Error: " + e.message); }
-                  }}
-                    className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition">
-                    Aceptar cotización
-                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={() => setRequestChange({ quote: q, show: true, description: "" })}
+                      className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-medium hover:bg-amber-600 transition">
+                      Solicitar cambio
+                    </button>
+                    <button onClick={async () => {
+                      try {
+                        await api.patch(`/quotes/${q.id}/status`, { status: "aceptado" });
+                        const res = await api.get("/events?page=1&limit=1");
+                        const events = res.data || res;
+                        if (events.length > 0) setEvent(events[0]);
+                        window.location.reload();
+                      } catch (e) { alert("Error: " + e.message); }
+                    }}
+                      className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition">
+                      Aceptar cotización
+                    </button>
+                  </div>
                 )}
               </div>
               {q.items && q.items.length > 0 && (

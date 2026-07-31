@@ -44,6 +44,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'checklist': return Icons.list_alt;
       case 'evento': return Icons.event;
       case 'cliente': return Icons.person_add;
+      case 'cambio_solicitado': return Icons.warning_amber_rounded;
       default: return Icons.notifications;
     }
   }
@@ -76,11 +77,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     itemCount: _notifs.length,
                     itemBuilder: (_, i) {
                       final n = _notifs[i];
+                      final isPriority = n['type'] == 'cambio_solicitado';
                       return Card(
-                        color: n['is_read'] == true ? null : Theme.of(context).colorScheme.primary.withValues(alpha: 0.05),
+                        color: isPriority ? Colors.red.shade50 : (n['is_read'] == true ? null : Theme.of(context).colorScheme.primary.withValues(alpha: 0.05)),
                         child: ListTile(
-                          leading: Icon(_icon(n['type']), color: Theme.of(context).colorScheme.primary),
-                          title: Text(n['title'] ?? n['message'] ?? '', style: const TextStyle(fontSize: 13)),
+                          leading: Icon(_icon(n['type']), color: isPriority ? Colors.red : Theme.of(context).colorScheme.primary),
+                          title: Text(n['title'] ?? n['message'] ?? '', style: TextStyle(fontSize: 13, fontWeight: isPriority ? FontWeight.bold : FontWeight.normal, color: isPriority ? Colors.red.shade700 : null)),
                           subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             if (n['body'] != null) Text(n['body'], style: const TextStyle(fontSize: 11, color: Colors.grey)),
                             if (n['event_name'] != null) Text(n['event_name'], style: const TextStyle(fontSize: 10, color: Colors.grey)),
