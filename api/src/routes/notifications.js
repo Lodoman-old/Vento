@@ -84,13 +84,17 @@ router.post("/read-all", async (req, res) => {
   }
 });
 
-// POST /api/notifications/register-token — guardar FCM token del usuario
+// POST /api/notifications/register-token — guardar token FCM del dispositivo
 router.post("/register-token", async (req, res) => {
   try {
-    const { token } = req.body;
+    const { token, platform } = req.body;
     if (!token) return res.status(400).json({ error: "Token requerido" });
 
-    await query("UPDATE users SET fcm_token = $1 WHERE id = $2", [token, req.user.id]);
+    await query(
+      `INSERT INTO device_tokens (user_id, token, platform) VALUES ($1, $2, $3)
+       ON CONFLICT (token) DO UPDATE SET user_id = $1, platform = $3, updated_at = NOW()`,
+      [req.user.id, token, platform || "web"]
+    );
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

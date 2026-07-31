@@ -121,6 +121,16 @@ async function start() {
   await query("ALTER TABLE payments ADD COLUMN IF NOT EXISTS paid_amount DECIMAL(12,2) DEFAULT 0");
   await query("ALTER TABLE payments ADD COLUMN IF NOT EXISTS applied_to UUID REFERENCES payments(id)");
 
+  // Tokens de dispositivos para push (web + móvil por usuario)
+  await query(`CREATE TABLE IF NOT EXISTS device_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(512) NOT NULL UNIQUE,
+    platform VARCHAR(20) DEFAULT 'web',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  )`);
+
   // Event templates table
   await query(`CREATE TABLE IF NOT EXISTS event_templates (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

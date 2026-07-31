@@ -3,6 +3,7 @@ import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { api } from "./api";
 
 const VAPID_KEY = "BLa6EFSg2A8U2ONKvpXvqpPsE5RUSDxsYqF5AEro2LjR5KAHLocZvpw_xfMYra0ZlamsrYNc08Obg9l7BIzVbIs";
+const SW_PATH = "/firebase-messaging-sw.js";
 
 let messaging = null;
 let configCache = null;
@@ -42,11 +43,28 @@ export async function getFirebaseMessaging() {
   }
 }
 
+export async function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return null;
+  try {
+    let reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) {
+      reg = await navigator.serviceWorker.register(SW_PATH);
+    }
+    if (!reg.active) {
+      reg = await navigator.serviceWorker.ready;
+    }
+    return reg || null;
+  } catch (err) {
+    console.warn("[fcm] error registrando service worker:", err.message);
+    return null;
+  }
+}
+
 export async function requestFcmToken() {
   if (!("Notification" in window)) return null;
   if (Notification.permission === "denied") return null;
 
-  const sw = await navigator.serviceWorker?.ready;
+  const sw = await registerServiceWorker();
   if (!sw) return null;
 
   const msg = await getFirebaseMessaging();
@@ -58,7 +76,7 @@ export async function requestFcmToken() {
 
     const token = await getToken(msg, { vapidKey: VAPID_KEY, serviceWorkerRegistration: sw });
     if (token) {
-      await api.post("/notifications/register-token", { token });
+      await api.post("/notifications/register-token", { token, platform: "web" });
       return token;
     }
   } catch (err) {

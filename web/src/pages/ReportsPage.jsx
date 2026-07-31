@@ -97,6 +97,7 @@ export default function ReportsPage() {
   const [supplierCategories, setSupplierCategories] = useState([]);
   const [financial, setFinancial] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [settings, setSettings] = useState(null);
   const [start, setStart] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10));
   const [end, setEnd] = useState(() => new Date().toISOString().slice(0, 10));
   const [catFilter, setCatFilter] = useState("");
@@ -105,6 +106,7 @@ export default function ReportsPage() {
   useEffect(() => {
     api.get("/reports/categories").then(setCategories).catch(() => {});
     api.get("/reports/supplier-categories").then(setSupplierCategories).catch(() => {});
+    api.get("/settings").then(setSettings).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -252,51 +254,84 @@ export default function ReportsPage() {
 
   async function exportCatalogPdf() {
     if (!catalog.length) return;
+    const company = settings?.company_name || "VENTO";
+
+    let logoData = null;
+    if (settings?.logo_url) {
+      try { logoData = await imageToDataUrl(settings.logo_url); } catch { logoData = null; }
+    }
+
     const grouped = {};
     catalog.forEach((i) => { const k = i.category || "Otros"; (grouped[k] = grouped[k] || []).push(i); });
     const cats = Object.keys(grouped).sort();
+
     const content = [
-      { table: { widths: ["*"], body: [[{ text: "VENTO", alignment: "center", color: GOLD, fontSize: 34, bold: true, margin: [0, 22, 0, 4] }]] }, layout: { fillColor: () => NAVY, hLineWidth: () => 0, vLineWidth: () => 0 } },
-      { text: "CATÁLOGO DE PRODUCTOS", alignment: "center", fontSize: 12, bold: true, color: NAVY, margin: [0, 10, 0, 2], characterSpacing: 2 },
-      { text: "Menú de productos para tu evento", alignment: "center", fontSize: 9, color: MUTED, margin: [0, 0, 0, 10] },
-      { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: GOLD }], margin: [0, 0, 0, 4] },
+      { table: { widths: ["*"], body: [[
+        {
+          stack: [
+            ...(logoData ? [{ image: logoData, fit: [140, 64], alignment: "center", margin: [0, 22, 0, 4] }] : []),
+            { text: company, alignment: "center", color: GOLD, fontSize: logoData ? 18 : 30, bold: true, characterSpacing: 2, margin: [0, logoData ? 0 : 22, 0, 2] },
+            { text: "Catálogo de productos", alignment: "center", color: "#CBD5E1", fontSize: 10, margin: [0, 0, 0, 20] },
+          ],
+        },
+      ]]}, layout: { fillColor: () => NAVY, hLineWidth: () => 0, vLineWidth: () => 0 } },
+      { canvas: [
+        { type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2, lineColor: GOLD },
+        { type: "line", x1: 0, y1: 4, x2: 515, y2: 4, lineWidth: 0.6, lineColor: GOLD },
+      ], margin: [0, 4, 0, 4] },
     ];
 
     for (const cat of cats) {
-      content.push({ text: cat.toUpperCase(), fontSize: 14, bold: true, color: NAVY, margin: [0, 14, 0, 2] });
-      content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: GOLD }], margin: [0, 0, 0, 6] });
+      content.push({ text: cat.toUpperCase(), fontSize: 13, bold: true, color: NAVY, characterSpacing: 1, margin: [0, 14, 0, 2] });
+      content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: GOLD, dash: { length: 4, space: 3 } }], margin: [0, 0, 0, 6] });
 
       const rows = [];
       for (const item of grouped[cat]) {
-        let imgCell = { text: "VENTO", alignment: "center", color: GOLD, bold: true, fontSize: 18, margin: [0, 34, 0, 4] };
+        let imgCell = { stack: [{ text: "VENTO", alignment: "center", color: GOLD, bold: true, fontSize: 16, margin: [0, 30, 0, 4] }] };
         if (item.image_url) {
           try {
             const dataUrl = await imageToDataUrl(item.image_url);
-            imgCell = { image: dataUrl, fit: [88, 88], alignment: "center" };
-          } catch { /* sin foto */ }
+            imgCell = { image: dataUrl, fit: [80, 80], alignment: "center" };
+          } catch {}
         }
         rows.push([
-          { table: { widths: ["*"], body: [[imgCell]] }, layout: { hLineWidth: () => 0, vLineWidth: () => 0, fillColor: () => "#F8FAFC" } },
-          [
-            { text: item.name, bold: true, fontSize: 11, color: NAVY, margin: [0, 0, 0, 2] },
-            { text: item.description || " ", fontSize: 8.5, color: MUTED, margin: [0, 0, 0, 4] },
-            {
-              columns: [
-                { text: fm(item.unit_price), color: GOLD, bold: true, fontSize: 12 },
-                ...(item.stock_available != null ? [{ text: `Stock: ${item.stock_available}`, alignment: "right", color: MUTED, fontSize: 8 }] : []),
-              ],
-            },
-          ],
+          { table: { widths: ["*"], body: [[imgCell]] }, layout: { hLineWidth: () => 0, vLineWidth: () => 0, fillColor: () => "#F5F1E4" } },
+          {
+            stack: [
+              {
+                columns: [
+                  { text: item.name, bold: true, fontSize: 11, color: NAVY, width: "auto" },
+                  { canvas: [{ type: "line", x1: 0, y1: 6, x2: 60, y2: 6, lineWidth: 1, lineColor: GOLD, dash: { length: 2, space: 2 } }], width: "*", margin: [4, 0, 4, 0] },
+                  { text: fm(item.unit_price), color: GOLD, bold: true, fontSize: 12, width: "auto" },
+                ],
+                columnGap: 4,
+              },
+              ...(item.description ? [{ text: item.description, fontSize: 8.5, color: "#7C7358", italics: true, margin: [0, 2, 0, 0] }] : []),
+              ...(item.stock_available != null ? [{ text: `Stock: ${item.stock_available}`, fontSize: 7.5, color: MUTED, margin: [0, 3, 0, 0] }] : []),
+            ],
+          },
         ]);
       }
-      content.push({ table: { widths: [110, "*"], body: rows }, layout: {
-        hLineWidth: (i) => (i === 0 ? 0.5 : 0.5), vLineWidth: () => 0, hLineColor: () => "#E2E8F0",
-        paddingTop: () => 4, paddingBottom: () => 4, paddingLeft: () => 4, paddingRight: () => 6,
+      content.push({ table: { widths: [92, "*"], body: rows }, layout: {
+        hLineWidth: (i, node) => (i === 0 || i === node.table.body.length ? 0 : 0.5), vLineWidth: () => 0, hLineColor: () => "#E8E0CC",
+        paddingTop: () => 5, paddingBottom: () => 5, paddingLeft: () => 4, paddingRight: () => 6,
       }});
     }
 
-    content.push({ text: `Generado por Vento — ${new Date().toLocaleString("es-MX")}`, fontSize: 8, color: MUTED, margin: [0, 16, 0, 0] });
-    pdfMake.createPdf({ pageSize: "A4", pageMargins: [36, 40, 36, 40], content, defaultStyle: { font: "Roboto" } }).download("Catalogo_Vento.pdf");
+    content.push({ text: `${company} — Eventos en perfecta sincronía`, alignment: "center", color: MUTED, fontSize: 8, margin: [0, 18, 0, 0] });
+
+    pdfMake.createPdf({
+      pageSize: "A4",
+      pageMargins: [36, 36, 36, 40],
+      content,
+      background: (page, pageSize) => ({
+        canvas: [
+          { type: "rect", x: 0, y: 0, w: pageSize.width, h: pageSize.height, color: "#FDFBF4" },
+          { type: "rect", x: 26, y: 26, w: pageSize.width - 52, h: pageSize.height - 52, lineColor: GOLD, lineWidth: 1.2 },
+        ],
+      }),
+      defaultStyle: { font: "Roboto" },
+    }).download("Catalogo_Vento.pdf");
   }
 
   function exportCatalogExcel() {
@@ -320,7 +355,7 @@ export default function ReportsPage() {
     else if (tab === "financial") exportFinancialExcel();
   };
 
-  const thCls = "text-left px-4 py-3 font-semibold text-xs uppercase tracking-wide";
+  const thCls = "text-left px-4 py-3 font-medium text-xs uppercase tracking-wide";
   const tdCls = "px-4 py-3";
 
   return (
@@ -369,10 +404,10 @@ export default function ReportsPage() {
             </div>
             <h2 className="text-lg font-bold mb-3 text-vento-navy"><span className="text-amber-500 mr-2">⬥</span>Eventos {periodLabel}</h2>
             {events.length === 0 && <p className="text-sm text-slate-400">Sin eventos en este periodo</p>}
-            <div className="overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-sm">
+            <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-vento-navy text-amber-400">
+                  <tr className="bg-slate-50 text-slate-500">
                     <th className={thCls}>Evento</th>
                     <th className={thCls}>Fecha</th>
                     <th className={thCls}>Estatus</th>
@@ -388,13 +423,13 @@ export default function ReportsPage() {
                     const pending = Number(e.pending_total || 0);
                     const st = statusInfo(e.status);
                     return (
-                      <tr key={e.id} className="hover:bg-amber-50/50">
+                      <tr key={e.id} className="hover:bg-slate-50/50">
                         <td className={`${tdCls} font-medium`}>{e.name}</td>
                         <td className={`${tdCls} text-slate-500`}>{fmDate(e.date)}</td>
                         <td className={tdCls}><span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${st.cls}`}>{st.label}</span></td>
                         <td className={`${tdCls} text-right`}>{fm(e.quoted_total)}</td>
-                        <td className={`${tdCls} text-right text-green-600`}>{fm(e.paid_total)}</td>
-                        <td className={`${tdCls} text-right ${pending > 0 ? "text-amber-600 font-medium" : "text-slate-300"}`}>{pending > 0 ? fm(pending) : "—"}</td>
+                        <td className={`${tdCls} text-right`}>{fm(e.paid_total)}</td>
+                        <td className={`${tdCls} text-right ${pending > 0 ? "font-medium" : "text-slate-300"}`}>{pending > 0 ? fm(pending) : "—"}</td>
                         <td className={`${tdCls} text-center`}>{e.staff_count}</td>
                         <td className={`${tdCls} text-center`}>{e.supplier_count}</td>
                       </tr>
@@ -403,11 +438,11 @@ export default function ReportsPage() {
                 </tbody>
                 {events.length > 0 && (
                   <tfoot>
-                    <tr className="font-bold bg-slate-50 border-t-2 border-t-amber-500">
+                    <tr className="font-bold bg-slate-50 border-t-2 border-t-slate-200">
                       <td className={`${tdCls} uppercase text-xs text-slate-500`} colSpan={3}>Totales</td>
-                      <td className={`${tdCls} text-right text-vento-navy`}>{fm(events.reduce((s, e) => s + Number(e.quoted_total || 0), 0))}</td>
-                      <td className={`${tdCls} text-right text-green-600`}>{fm(events.reduce((s, e) => s + Number(e.paid_total || 0), 0))}</td>
-                      <td className={`${tdCls} text-right text-amber-600`}>{fm(events.reduce((s, e) => s + Number(e.pending_total || 0), 0))}</td>
+                      <td className={`${tdCls} text-right`}>{fm(events.reduce((s, e) => s + Number(e.quoted_total || 0), 0))}</td>
+                      <td className={`${tdCls} text-right`}>{fm(events.reduce((s, e) => s + Number(e.paid_total || 0), 0))}</td>
+                      <td className={`${tdCls} text-right`}>{fm(events.reduce((s, e) => s + Number(e.pending_total || 0), 0))}</td>
                       <td className={tdCls} colSpan={2}></td>
                     </tr>
                   </tfoot>
@@ -421,10 +456,10 @@ export default function ReportsPage() {
           <div>
             <h2 className="text-lg font-bold mb-3 text-vento-navy"><span className="text-amber-500 mr-2">⬥</span>Clientes</h2>
             {clients.length === 0 && <p className="text-sm text-slate-400">Sin clientes registrados</p>}
-            <div className="overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-sm">
+            <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-vento-navy text-amber-400">
+                  <tr className="bg-slate-50 text-slate-500">
                     <th className={thCls}>Nombre</th>
                     <th className={thCls}>Email</th>
                     <th className={thCls}>Teléfono</th>
@@ -435,23 +470,23 @@ export default function ReportsPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {clients.map((c) => (
-                    <tr key={c.id} className="hover:bg-amber-50/50">
+                    <tr key={c.id} className="hover:bg-slate-50/50">
                       <td className={`${tdCls} font-medium`}>{c.display_name}</td>
                       <td className={`${tdCls} text-slate-500`}>{c.email || "—"}</td>
                       <td className={`${tdCls} text-slate-500`}>{c.phone || "—"}</td>
                       <td className={`${tdCls} text-center`}>{c.event_count}</td>
                       <td className={`${tdCls} text-right`}>{fm(c.total_spent)}</td>
-                      <td className={`${tdCls} text-right text-green-600`}>{fm(c.total_paid)}</td>
+                      <td className={`${tdCls} text-right`}>{fm(c.total_paid)}</td>
                     </tr>
                   ))}
                 </tbody>
                 {clients.length > 0 && (
                   <tfoot>
-                    <tr className="font-bold bg-slate-50 border-t-2 border-t-amber-500">
+                    <tr className="font-bold bg-slate-50 border-t-2 border-t-slate-200">
                       <td className={`${tdCls} uppercase text-xs text-slate-500`} colSpan={3}>Totales</td>
-                      <td className={`${tdCls} text-center text-vento-navy`}>{clients.reduce((s, c) => s + Number(c.event_count || 0), 0)}</td>
-                      <td className={`${tdCls} text-right text-vento-navy`}>{fm(clients.reduce((s, c) => s + Number(c.total_spent || 0), 0))}</td>
-                      <td className={`${tdCls} text-right text-green-600`}>{fm(clients.reduce((s, c) => s + Number(c.total_paid || 0), 0))}</td>
+                      <td className={`${tdCls} text-center`}>{clients.reduce((s, c) => s + Number(c.event_count || 0), 0)}</td>
+                      <td className={`${tdCls} text-right`}>{fm(clients.reduce((s, c) => s + Number(c.total_spent || 0), 0))}</td>
+                      <td className={`${tdCls} text-right`}>{fm(clients.reduce((s, c) => s + Number(c.total_paid || 0), 0))}</td>
                     </tr>
                   </tfoot>
                 )}
@@ -475,10 +510,10 @@ export default function ReportsPage() {
             </div>
             <h2 className="text-lg font-bold mb-3 text-vento-navy"><span className="text-amber-500 mr-2">⬥</span>Proveedores</h2>
             {suppliers.length === 0 && <p className="text-sm text-slate-400">Sin proveedores</p>}
-            <div className="overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-sm">
+            <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-vento-navy text-amber-400">
+                  <tr className="bg-slate-50 text-slate-500">
                     <th className={thCls}>Nombre</th>
                     <th className={thCls}>Categoría</th>
                     <th className={thCls}>Contacto</th>
@@ -490,14 +525,14 @@ export default function ReportsPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {suppliers.map((s) => (
-                    <tr key={s.id} className="hover:bg-amber-50/50">
+                    <tr key={s.id} className="hover:bg-slate-50/50">
                       <td className={`${tdCls} font-medium`}>{s.name}</td>
-                      <td className={tdCls}><span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 capitalize font-medium">{s.category}</span></td>
+                      <td className={tdCls}><span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 capitalize font-medium">{s.category}</span></td>
                       <td className={`${tdCls} text-slate-500`}>{s.contact_name || "—"}</td>
                       <td className={`${tdCls} text-slate-500`}>{s.phone || "—"}</td>
                       <td className={`${tdCls} text-center`}>{s.event_count}</td>
                       <td className={`${tdCls} text-right`}>{fm(s.total_budgeted)}</td>
-                      <td className={`${tdCls} text-right text-green-600`}>{fm(s.total_paid)}</td>
+                      <td className={`${tdCls} text-right`}>{fm(s.total_paid)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -508,13 +543,7 @@ export default function ReportsPage() {
 
         {tab === "catalog" && (
           <div>
-            <div className="flex items-center justify-between flex-wrap gap-2 mb-3 no-print">
-              <p className="text-xs text-slate-500">Catálogo para imprimir — el cliente puede marcar sus selecciones</p>
-              <button onClick={exportCatalogPdf}
-                className="px-3 py-1.5 bg-vento-navy text-amber-400 rounded-lg text-sm font-medium hover:bg-slate-800 transition">
-                ⬥ Descargar PDF menú
-              </button>
-            </div>
+            <p className="text-xs text-slate-500 mb-3">Catálogo para imprimir — el cliente puede marcar sus selecciones</p>
             <div className="flex gap-1 mb-4 flex-wrap no-print">
               {["", ...categories].map((c) => (
                 <button key={c} onClick={() => setCatFilter(c)}
@@ -532,10 +561,10 @@ export default function ReportsPage() {
                   {item.image_url ? (
                     <img src={item.image_url} alt={item.name} className="w-full h-36 object-cover" />
                   ) : (
-                    <div className="w-full h-36 bg-vento-navy flex items-center justify-center text-amber-400 text-2xl font-bold">VENTO</div>
+                    <div className="w-full h-36 bg-slate-100 flex items-center justify-center text-slate-300 text-2xl font-bold">[Sin foto]</div>
                   )}
                   <div className="p-3">
-                    <p className="text-sm font-medium text-vento-navy">{item.name}</p>
+                    <p className="text-sm font-medium">{item.name}</p>
                     <p className="text-xs text-slate-400 capitalize">{item.category}</p>
                     <p className="text-amber-600 font-bold text-sm mt-1">{fm(item.unit_price)}</p>
                     {item.stock_available != null && (
@@ -567,29 +596,29 @@ export default function ReportsPage() {
             {financial && (
               <div className="space-y-6">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-white rounded-xl border-l-4 border-l-amber-500 border border-slate-200 p-4 shadow-sm">
+                  <div className="bg-white rounded-xl border border-slate-200 p-4">
                     <p className="text-xs text-slate-400">Pagos recibidos</p>
-                    <p className="text-2xl font-bold text-green-600">{financial.payment_count}</p>
+                    <p className="text-2xl font-bold text-vento-navy">{financial.payment_count}</p>
                   </div>
-                  <div className="bg-white rounded-xl border-l-4 border-l-amber-500 border border-slate-200 p-4 shadow-sm">
+                  <div className="bg-white rounded-xl border border-slate-200 p-4">
                     <p className="text-xs text-slate-400">Total recibido</p>
                     <p className="text-2xl font-bold text-vento-navy">{fm(financial.total_received)}</p>
                   </div>
-                  <div className="bg-white rounded-xl border-l-4 border-l-amber-500 border border-slate-200 p-4 shadow-sm">
+                  <div className="bg-white rounded-xl border border-slate-200 p-4">
                     <p className="text-xs text-slate-400">Cotizaciones con pago</p>
-                    <p className="text-2xl font-bold text-amber-600">{financial.quotes_with_payment}</p>
+                    <p className="text-2xl font-bold text-vento-navy">{financial.quotes_with_payment}</p>
                   </div>
-                  <div className="bg-white rounded-xl border-l-4 border-l-amber-500 border border-slate-200 p-4 shadow-sm">
+                  <div className="bg-white rounded-xl border border-slate-200 p-4">
                     <p className="text-xs text-slate-400">Total cotizado</p>
-                    <p className="text-2xl font-bold text-amber-600">{fm(financial.total_quoted)}</p>
+                    <p className="text-2xl font-bold text-vento-navy">{fm(financial.total_quoted)}</p>
                   </div>
                 </div>
                 <div>
                   <h3 className="text-sm font-bold mb-2 text-vento-navy">Por método de pago</h3>
-                  <div className="overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-sm">
+                  <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="bg-vento-navy text-amber-400">
+                        <tr className="bg-slate-50 text-slate-500">
                           <th className={thCls}>Método</th>
                           <th className={`${thCls} text-right`}>Pagos</th>
                           <th className={`${thCls} text-right`}>Total</th>
@@ -597,7 +626,7 @@ export default function ReportsPage() {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {financial.by_method?.map((m) => (
-                          <tr key={m.method} className="hover:bg-amber-50/50">
+                          <tr key={m.method} className="hover:bg-slate-50/50">
                             <td className={`${tdCls} capitalize font-medium`}>{m.method}</td>
                             <td className={`${tdCls} text-right`}>{m.count}</td>
                             <td className={`${tdCls} text-right font-medium`}>{fm(m.total)}</td>
@@ -605,10 +634,10 @@ export default function ReportsPage() {
                         ))}
                       </tbody>
                       <tfoot>
-                        <tr className="font-bold bg-slate-50 border-t-2 border-t-amber-500">
+                        <tr className="font-bold bg-slate-50 border-t-2 border-t-slate-200">
                           <td className={`${tdCls} uppercase text-xs text-slate-500`}>Total recibido</td>
-                          <td className={`${tdCls} text-right text-vento-navy`}>{financial.payment_count}</td>
-                          <td className={`${tdCls} text-right text-green-600`}>{fm(financial.total_received)}</td>
+                          <td className={`${tdCls} text-right`}>{financial.payment_count}</td>
+                          <td className={`${tdCls} text-right`}>{fm(financial.total_received)}</td>
                         </tr>
                       </tfoot>
                     </table>

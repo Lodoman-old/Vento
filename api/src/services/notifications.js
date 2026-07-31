@@ -41,16 +41,32 @@ async function sendPush(userId, title, body, data = {}) {
   if (!fcmInitialized) return;
 
   try {
-    const { rows } = await query("SELECT fcm_token FROM users WHERE id = $1 AND fcm_token IS NOT NULL", [userId]);
-    if (rows.length === 0 || !rows[0].fcm_token) return;
+    const { rows } = await query(
+      `SELECT token FROM device_tokens WHERE user_id = $1
+       UNION
+       SELECT fcm_token AS token FROM users WHERE id = $1 AND fcm_token IS NOT NULL`,
+      [userId]
+    );
+    const tokens = [...new Set(rows.map((r) => r.token))];
+    if (tokens.length === 0) return;
 
     const message = {
-      token: rows[0].fcm_token,
       notification: { title, body },
       data: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)])),
     };
 
-    await admin.messaging().send(message);
+    for (const token of tokens) {
+      try {
+        await admin.messaging().send({ ...message, token });
+      } catch (err) {
+        const code = `${err?.errorInfo?.code || err?.code || err?.message || ""}`;
+        if (/registration-token-not-registered|invalid-registration|UNREGISTERED|NOT_FOUND|MISMATCH_SENDER_ID/.test(code)) {
+          await query("DELETE FROM device_tokens WHERE token = $1", [token]);
+        } else {
+          console.warn(`[fcm] error enviando push a ${userId}:`, err.message);
+        }
+      }
+    }
   } catch (err) {
     console.warn(`[fcm] error enviando push a ${userId}:`, err.message);
   }
