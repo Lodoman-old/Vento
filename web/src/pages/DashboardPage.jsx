@@ -51,7 +51,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-6">
         <div>
           <h1 className="text-2xl font-bold">Panel</h1>
           <p className="text-sm text-slate-500">Bienvenido, {user?.name}</p>

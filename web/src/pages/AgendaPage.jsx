@@ -119,7 +119,7 @@ export default function AgendaPage() {
     <div>
       <Link to={`/events/${id}`} className="text-sm text-vento-cyan hover:underline mb-4 inline-block">&larr; Volver al evento</Link>
 
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
         <h1 className="text-2xl font-bold">Agenda</h1>
         <div className="flex items-center gap-3">
           <span className="text-sm text-slate-500">{completed}/{filtered.length}</span>

@@ -78,7 +78,7 @@ export default function ReportsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
         <h1 className="text-2xl font-bold">Reportes</h1>
         <button onClick={handlePrint}
           className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition">
@@ -86,10 +86,10 @@ export default function ReportsPage() {
         </button>
       </div>
 
-      <div className="flex gap-1 mb-4 border-b border-slate-200">
+      <div className="flex gap-1 mb-4 border-b border-slate-200 overflow-x-auto whitespace-nowrap">
         {tabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`px-3 py-2 text-sm font-medium border-b-2 transition ${
+            className={`px-3 py-2 text-sm font-medium border-b-2 transition shrink-0 ${
               tab === t.id ? "border-amber-500 text-amber-700" : "border-transparent text-slate-400 hover:text-slate-600"
             }`}>
             {t.label}
@@ -112,6 +112,7 @@ export default function ReportsPage() {
             </div>
             <h2 className="text-lg font-bold mb-3 text-vento-navy"><span className="text-amber-500 mr-2">⬥</span>Eventos del {fmDate(start)} al {fmDate(end)}</h2>
             {events.length === 0 && <p className="text-sm text-slate-400">Sin eventos en este periodo</p>}
+            <div className="overflow-x-auto">
             <table>
               <thead>
                 <tr><th>Evento</th><th>Fecha</th><th>Estatus</th><th>Cotizado</th><th>Pagado</th><th>Pendiente</th><th>Staff</th><th>Proveedores</th></tr>
@@ -143,6 +144,7 @@ export default function ReportsPage() {
                 </tr>
               </tfoot>
             </table>
+            </div>
           </div>
         )}
 
@@ -150,6 +152,7 @@ export default function ReportsPage() {
           <div>
             <h2 className="text-lg font-bold mb-3 text-vento-navy"><span className="text-amber-500 mr-2">⬥</span>Clientes</h2>
             {clients.length === 0 && <p className="text-sm text-slate-400">Sin clientes registrados</p>}
+            <div className="overflow-x-auto">
             <table>
               <thead>
                 <tr><th>Nombre</th><th>Email</th><th>Teléfono</th><th>Eventos</th><th>Total gastado</th><th>Pagado</th></tr>
@@ -175,6 +178,7 @@ export default function ReportsPage() {
                 </tr>
               </tfoot>
             </table>
+            </div>
           </div>
         )}
 
@@ -193,6 +197,7 @@ export default function ReportsPage() {
             </div>
             <h2 className="text-lg font-bold mb-3 text-vento-navy"><span className="text-amber-500 mr-2">⬥</span>Proveedores</h2>
             {suppliers.length === 0 && <p className="text-sm text-slate-400">Sin proveedores</p>}
+            <div className="overflow-x-auto">
             <table>
               <thead>
                 <tr><th>Nombre</th><th>Categoría</th><th>Contacto</th><th>Teléfono</th><th>Eventos</th><th>Presupuestado</th><th>Pagado</th></tr>
@@ -211,6 +216,7 @@ export default function ReportsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 
@@ -288,6 +294,7 @@ export default function ReportsPage() {
                 </div>
                 <div>
                   <h3 className="text-sm font-bold mb-2">Por método de pago</h3>
+                  <div className="overflow-x-auto">
                   <table>
                     <thead>
                       <tr><th>Método</th><th className="text-right">Pagos</th><th className="text-right">Total</th></tr>
@@ -302,6 +309,7 @@ export default function ReportsPage() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               </div>
             )}

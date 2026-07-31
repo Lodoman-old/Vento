@@ -69,7 +69,7 @@ export default function NotificationsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
         <h1 className="text-2xl font-bold">Notificaciones</h1>
         <div className="flex gap-2">
           {unread.length > 0 && (

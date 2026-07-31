@@ -64,7 +64,7 @@ export default function PortalPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-6">
         <div>
           <h1 className="text-xl font-bold">Mi evento</h1>
           <p className="text-sm text-slate-500">Bienvenido, {user?.name}</p>
@@ -108,10 +108,10 @@ export default function PortalPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-4 border-b border-slate-200">
+      <div className="flex gap-1 mb-4 border-b border-slate-200 overflow-x-auto whitespace-nowrap">
         {["overview", "agenda", "suppliers", "quotes"].map((t) => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-3 py-2 text-xs font-medium border-b-2 transition -mb-px capitalize ${
+            className={`px-3 py-2 text-xs font-medium border-b-2 transition -mb-px capitalize shrink-0 ${
               tab === t ? "border-vento-cyan text-vento-cyan" : "border-transparent text-slate-500 hover:text-slate-700"
             }`}>
             {t === "overview" ? "Resumen" : t === "agenda" ? `Agenda (${agenda.length})` : t === "suppliers" ? `Proveedores (${suppliers.length})` : `Cotizaciones (${quotes.length})`}

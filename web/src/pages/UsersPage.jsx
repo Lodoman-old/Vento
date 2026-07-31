@@ -75,7 +75,7 @@ export default function UsersPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-6">
         <h1 className="text-2xl font-bold">Usuarios</h1>
         <button onClick={() => { resetForm(); setShowForm(true); }}
           className="px-4 py-2 bg-vento-cyan text-vento-navy rounded-lg font-medium text-sm hover:bg-cyan-400 transition">
@@ -139,7 +139,7 @@ export default function UsersPage() {
       )}
 
       {/* Tabla */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">

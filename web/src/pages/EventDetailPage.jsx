@@ -286,12 +286,12 @@ setLoading(false);
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-slate-200">
+      <div className="flex gap-1 mb-6 border-b border-slate-200 overflow-x-auto whitespace-nowrap scrollbar-thin">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition -mb-px ${
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition -mb-px shrink-0 ${
               tab === t.id
                 ? "border-vento-cyan text-vento-cyan"
                 : "border-transparent text-slate-500 hover:text-slate-700"
@@ -331,7 +331,7 @@ setLoading(false);
 
       {tab === "agenda" && (
         <div>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
             <p className="text-sm text-slate-500">{completedAgenda}/{agenda.length} completados</p>
             {user?.role === "administrador" && (
               <Link to={`/events/${id}/agenda`}
@@ -369,7 +369,7 @@ setLoading(false);
 
       {tab === "checklist" && (
         <div>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
             <p className="text-sm text-slate-500">{checklist.filter((c) => c.is_completed).length}/{checklist.length} completados</p>
           </div>
           {user?.role === "administrador" && (
@@ -408,7 +408,7 @@ setLoading(false);
 
       {tab === "suppliers" && (
         <div>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
             <p className="text-sm text-slate-500">{hiredSuppliers} contratados de {suppliers.length}</p>
             {user?.role === "administrador" && (
               <Link to={`/events/${id}/suppliers`}
@@ -647,7 +647,7 @@ setLoading(false);
 
       {tab === "inventory" && (
         <div>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
             <p className="text-sm text-slate-500">Inventario para montaje</p>
           </div>
           {loadingInventory ? (
@@ -718,7 +718,7 @@ setLoading(false);
 
       {tab === "quotes" && (
         <div>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
             <p className="text-sm text-slate-500">{quotes.length} cotizaciones</p>
             {user?.role === "administrador" && (
               <Link to={`/events/${id}/quotes`}

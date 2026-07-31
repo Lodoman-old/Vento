@@ -437,7 +437,7 @@ export default function QuotesPage() {
     <div>
       <Link to={`/events/${eventId}`} className="text-sm text-vento-cyan hover:underline mb-4 inline-block">&larr; Volver al evento</Link>
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-6">
         <h1 className="text-2xl font-bold">Cotizaciones</h1>
         {user?.role === "administrador" && (
           <button onClick={() => setShowForm(!showForm)}
@@ -854,6 +854,7 @@ function QuoteDetail({ quoteId }) {
 
   return (
     <div>
+      <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-xs text-slate-400 border-b border-slate-200">
@@ -899,6 +900,7 @@ function QuoteDetail({ quoteId }) {
         </tfoot>
         )}
       </table>
+      </div>
 
       {/* Plan de pagos */}
       {data.payments?.length > 0 && (

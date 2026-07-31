@@ -115,7 +115,7 @@ export default function EventSuppliersPage() {
     <div>
       <Link to={`/events/${id}`} className="text-sm text-vento-cyan hover:underline mb-4 inline-block">&larr; Volver al evento</Link>
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-6">
         <h1 className="text-2xl font-bold">Proveedores del evento</h1>
         <div className="flex gap-2">
           <Link to="/suppliers"
