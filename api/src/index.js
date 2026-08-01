@@ -121,6 +121,9 @@ async function start() {
   await query("ALTER TABLE payments ADD COLUMN IF NOT EXISTS paid_amount DECIMAL(12,2) DEFAULT 0");
   await query("ALTER TABLE payments ADD COLUMN IF NOT EXISTS applied_to UUID REFERENCES payments(id)");
 
+  // Faltantes de inventario persistidos por evento (JSONB)
+  await query("ALTER TABLE events ADD COLUMN IF NOT EXISTS missing_items JSONB DEFAULT '[]'::jsonb");
+
   // Tokens de dispositivos para push (web + móvil por usuario)
   await query(`CREATE TABLE IF NOT EXISTS device_tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

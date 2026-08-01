@@ -437,4 +437,53 @@ router.post("/:id/inventory-movement", async (req, res) => {
   }
 });
 
+// POST /api/events/:id/finalize-inventory — calcula y persiste los faltantes del inventario
+router.post("/:id/finalize-inventory", async (req, res) => {
+  try {
+    const { rows: quotes } = await query(
+      "SELECT id FROM quotes WHERE event_id = $1 AND status = 'aceptado' ORDER BY created_at DESC LIMIT 1",
+      [req.params.id]
+    );
+    if (quotes.length === 0) return res.json([]);
+
+    const { rows: items } = await query(
+      "SELECT id AS quote_item_id, item_name, quantity, no_return_cost FROM quote_items WHERE quote_id = $1 AND is_supplier_cost = false",
+      [quotes[0].id]
+    );
+
+    const { rows: movements } = await query(
+      "SELECT item_name, quantity, movement_type FROM inventory_movements WHERE event_id = $1",
+      [req.params.id]
+    );
+
+    const getMovements = (itemName, type) =>
+      movements
+        .filter((m) => m.movement_type === type && m.item_name.toLowerCase() === itemName.toLowerCase())
+        .reduce((s, m) => s + Number(m.quantity), 0);
+
+    const faltantes = items
+      .map((i) => {
+        const taken = getMovements(i.item_name, 'llevado');
+        const returned = getMovements(i.item_name, 'regresado');
+        const faltante = Math.max(0, taken - returned);
+        const costUnit = Number(i.no_return_cost) || 0;
+        return {
+          name: i.item_name,
+          quantity: Number(i.quantity),
+          taken,
+          returned,
+          faltante,
+          costUnit,
+          cost: faltante * costUnit,
+        };
+      })
+      .filter((f) => f.faltante > 0);
+
+    await query("UPDATE events SET missing_items = $1::jsonb WHERE id = $2", [JSON.stringify(faltantes), req.params.id]);
+    res.json(faltantes);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

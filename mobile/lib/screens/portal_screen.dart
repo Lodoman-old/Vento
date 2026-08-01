@@ -1,6 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:share_plus/share_plus.dart';
 import '../models/event.dart';
 import '../models/agenda_item.dart';
 import '../models/supplier.dart';
@@ -101,6 +105,40 @@ class _PortalScreenState extends State<PortalScreen> {
                   Expanded(child: _kpiCard('Cotizaciones', '${_quotes.length}')),
                 ]),
                 const SizedBox(height: 16),
+                if (_event!.missingItems.isNotEmpty) ...[
+                  Card(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.red.shade200)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text('Faltantes de inventario', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade600)),
+                            Text('Productos no regresados', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                          ]),
+                          TextButton.icon(
+                            onPressed: () => _printFaltantesPdf(),
+                            icon: const Icon(Icons.picture_as_pdf, size: 16),
+                            label: const Text('Recibo'),
+                          ),
+                        ]),
+                        ..._event!.missingItems.map((f) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                            Expanded(child: Text(f['name']?.toString() ?? '', style: const TextStyle(fontSize: 13))),
+                            Text('${f['faltante'] ?? 0}', style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                            Text('\$${_fm(f['cost'])}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                          ]),
+                        )),
+                        const Divider(height: 16),
+                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                          const Text('Total faltantes', style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text('\$${_fmtFaltantesTotal()}', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade600)),
+                        ]),
+                      ]),
+                    ),
+                  ),
+                ],
                 if (_agenda.isNotEmpty) ...[
                   const Text('Agenda', style: TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
@@ -218,6 +256,75 @@ class _PortalScreenState extends State<PortalScreen> {
           Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
         ]),
       ),
+    );
+  }
+
+  String _fm(dynamic n) {
+    final v = double.tryParse(n?.toString() ?? '') ?? 0;
+    return NumberFormat('#,##0.00', 'es').format(v);
+  }
+
+  String _fmtFaltantesTotal() {
+    final t = _event!.missingItems.fold<double>(0, (s, f) => s + (double.tryParse(f['cost']?.toString() ?? '0') ?? 0));
+    return NumberFormat('#,##0.00', 'es').format(t);
+  }
+
+  Future<void> _printFaltantesPdf() async {
+    final faltantes = _event!.missingItems;
+    final total = faltantes.fold<double>(0, (s, f) => s + (double.tryParse(f['cost']?.toString() ?? '0') ?? 0));
+    final nf = NumberFormat('#,##0.00', 'es');
+    final doc = pw.Document();
+    doc.addPage(pw.Page(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(40),
+      build: (ctx) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
+        pw.Text('REPORTE DE FALTANTES', style: pw.TextStyle(font: pw.Font.helveticaBold(), fontSize: 18, color: PdfColors.red700)),
+        pw.SizedBox(height: 4),
+        pw.Text('Evento: ${_event!.name}', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+        pw.SizedBox(height: 16),
+        pw.Table(
+          columnWidths: {0: pw.FlexColumnWidth(3), 1: pw.FlexColumnWidth(1.1), 2: pw.FlexColumnWidth(1.4), 3: pw.FlexColumnWidth(1.1), 4: pw.FlexColumnWidth(1.5)},
+          border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+          children: [
+            pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.grey900), children: [
+              _pdfHeader('Producto'), _pdfHeader('Tomados'), _pdfHeader('Regresados'), _pdfHeader('Faltante'), _pdfHeader('Costo'),
+            ]),
+            ...faltantes.map((f) => pw.TableRow(children: [
+              _pdfCell(f['name']?.toString() ?? ''),
+              _pdfCell(f['taken']?.toString() ?? '0', center: true),
+              _pdfCell(f['returned']?.toString() ?? '0', center: true),
+              _pdfCell(f['faltante']?.toString() ?? '0', center: true, red: true),
+              _pdfCell('\$${nf.format(double.tryParse(f['cost']?.toString() ?? '0') ?? 0)}', right: true, red: true),
+            ])),
+            pw.TableRow(children: [
+              _pdfCell('Total', bold: true),
+              _pdfCell(''), _pdfCell(''), _pdfCell(''),
+              _pdfCell('\$${nf.format(total)}', right: true, bold: true, red: true),
+            ]),
+          ],
+        ),
+        pw.SizedBox(height: 24),
+        pw.Text('Generado por Vento — ${DateFormat("d MMM yyyy, HH:mm", 'es').format(DateTime.now())}', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey400)),
+      ]),
+    ));
+    final bytes = await doc.save();
+    final dir = Directory.systemTemp;
+    final file = File('${dir.path}/faltantes_${_event!.name}.pdf');
+    await file.writeAsBytes(bytes);
+    await Share.shareXFiles([XFile(file.path)], text: 'Reporte de faltantes');
+  }
+
+  pw.Widget _pdfHeader(String text) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(6),
+      child: pw.Text(text, style: pw.TextStyle(fontSize: 9, color: PdfColors.white, fontWeight: pw.FontWeight.bold)),
+    );
+  }
+
+  pw.Widget _pdfCell(String text, {bool center = false, bool right = false, bool bold = false, bool red = false}) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(6),
+      child: pw.Text(text, textAlign: center ? pw.TextAlign.center : (right ? pw.TextAlign.right : pw.TextAlign.left), style: pw.TextStyle(fontSize: 9, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal, color: red ? PdfColors.red700 : PdfColors.black)),
     );
   }
 }

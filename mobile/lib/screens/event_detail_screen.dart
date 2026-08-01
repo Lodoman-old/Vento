@@ -31,6 +31,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
   bool _loading = true;
   List<Map> _inventory = [];
   bool _loadingInventory = false;
+  List<Map> _faltantes = [];
+  bool _finalizing = false;
   String? _error;
   Map<String, dynamic>? _eventData;
 
@@ -48,7 +50,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
   Future<void> _fetchEvent() async {
     try {
       final data = await ApiService().get('/events/${widget.event.id}');
-      if (mounted) setState(() => _eventData = data);
+      if (mounted) setState(() {
+        _eventData = data;
+        if (data['missing_items'] is List) _faltantes = List<Map>.from(data['missing_items']);
+      });
     } catch (_) {}
     _load();
   }
@@ -723,15 +728,14 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
     }
   }
 
-  Future<void> _quotePdf(Quote q) async {
-    try {
-      final detail = await ApiService().get('/quotes/${q.id}');
-      final items = (detail['items'] as List?)?.cast<Map>() ?? [];
-      final payments = (detail['payments'] as List?)?.cast<Map>() ?? [];
-      final company = await ApiService().get('/settings');
-      final fm = NumberFormat('#,##0.00', 'es');
-      final df = DateFormat('dd/MM/yyyy');
-      final navy = PdfColor.fromInt(0xFF0F172A);
+  Future<File> _buildQuotePdfFile(Quote q) async {
+    final detail = await ApiService().get('/quotes/${q.id}');
+    final items = (detail['items'] as List?)?.cast<Map>() ?? [];
+    final payments = (detail['payments'] as List?)?.cast<Map>() ?? [];
+    final company = await ApiService().get('/settings');
+    final fm = NumberFormat('#,##0.00', 'es');
+    final df = DateFormat('dd/MM/yyyy');
+    final navy = PdfColor.fromInt(0xFF0F172A);
 
       final doc = pw.Document();
       doc.addPage(pw.MultiPage(
@@ -791,6 +795,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
       final dir = Directory.systemTemp;
       final file = File('${dir.path}/cotizacion_${(q.clientName ?? 'cliente').replaceAll(' ', '_')}.pdf');
       await file.writeAsBytes(pdfBytes);
+      return file;
+  }
+
+  Future<void> _quotePdf(Quote q) async {
+    try {
+      final file = await _buildQuotePdfFile(q);
       await Share.shareXFiles([XFile(file.path)], text: 'Cotización Vento - ${q.clientName ?? ""}');
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al generar PDF: $e')));
@@ -835,7 +845,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
           '$detailFinal\n\n'
           'Total: \$${fm.format(q.total)}'
           '$portalInfo';
-      await Share.share(msg);
+      try {
+        final file = await _buildQuotePdfFile(q);
+        await Share.shareXFiles([XFile(file.path)], text: msg);
+      } catch (_) {
+        await Share.share(msg);
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')));
     }
@@ -856,67 +871,96 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
       ]);
     }
     final isAdmin = AuthService().currentUser?.isAdmin ?? false;
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: _inventory.length,
-      itemBuilder: (_, i) {
-        final item = _inventory[i];
-        final name = item['name'] ?? '';
-        final quantity = int.tryParse(item['quantity']?.toString() ?? '0') ?? 0;
-        final llevado = int.tryParse(item['llevado']?.toString() ?? '0') ?? 0;
-        final needsReturn = item['needs_return'] == true;
-        final quoteItemId = item['quote_item_id']?.toString();
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Expanded(
-                  child: Row(children: [
-                    if (needsReturn)
-                      Container(
-                        margin: const EdgeInsets.only(right: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                        decoration: BoxDecoration(color: Colors.amber.shade100, borderRadius: BorderRadius.circular(8)),
-                        child: Text('Regresa', style: TextStyle(fontSize: 10, color: Colors.amber.shade800, fontWeight: FontWeight.w600)),
-                      ),
-                    Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                  ]),
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          const Text('Inventario para montaje', style: TextStyle(fontSize: 12, color: Colors.grey)),
+          Wrap(spacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+            if (_faltantes.isNotEmpty)
+              SizedBox(
+                height: 32,
+                child: TextButton(
+                  style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8), backgroundColor: Colors.red.shade50),
+                  onPressed: () => _showFaltantesDialog(_faltantes),
+                  child: Text('Faltantes (${_faltantes.length})', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.red.shade600)),
                 ),
-                Row(children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(color: Colors.cyan.shade50, borderRadius: BorderRadius.circular(12)),
-                    child: Text('$quantity pz', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.cyan.shade800)),
-                  ),
-                  if (llevado > 0)
-                    Container(
-                      margin: const EdgeInsets.only(left: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(12)),
-                      child: Text('$llevado en montaje', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.amber.shade800)),
+              ),
+            SizedBox(
+              height: 32,
+              child: TextButton(
+                style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10), backgroundColor: Colors.green.shade600, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                onPressed: _finalizing ? null : _finalizeInventory,
+                child: Text(_finalizing ? 'Calculando...' : 'Finalizar regresos', style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ]),
+        ]),
+      ),
+      Expanded(
+        child: ListView.builder(
+          padding: const EdgeInsets.all(12),
+          itemCount: _inventory.length,
+          itemBuilder: (_, i) {
+            final item = _inventory[i];
+            final name = item['name'] ?? '';
+            final quantity = int.tryParse(item['quantity']?.toString() ?? '0') ?? 0;
+            final llevado = int.tryParse(item['llevado']?.toString() ?? '0') ?? 0;
+            final needsReturn = item['needs_return'] == true;
+            final quoteItemId = item['quote_item_id']?.toString();
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Expanded(
+                      child: Row(children: [
+                        if (needsReturn)
+                          Container(
+                            margin: const EdgeInsets.only(right: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(color: Colors.amber.shade100, borderRadius: BorderRadius.circular(8)),
+                            child: Text('Regresa', style: TextStyle(fontSize: 10, color: Colors.amber.shade800, fontWeight: FontWeight.w600)),
+                          ),
+                        Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      ]),
                     ),
+                    Row(children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(color: Colors.cyan.shade50, borderRadius: BorderRadius.circular(12)),
+                        child: Text('$quantity pz', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.cyan.shade800)),
+                      ),
+                      if (llevado > 0)
+                        Container(
+                          margin: const EdgeInsets.only(left: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(12)),
+                          child: Text('$llevado en montaje', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.amber.shade800)),
+                        ),
+                    ]),
+                  ]),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    _invActionBtn('Llevar', Colors.amber, llevado >= quantity, () => _inventoryQtyDialog(name, quantity - llevado, 'llevado')),
+                    const SizedBox(width: 6),
+                    _invActionBtn('Regresar', Colors.green, llevado <= 0, () => _inventoryQtyDialog(name, llevado, 'regresado')),
+                    if (quoteItemId != null && isAdmin) ...[
+                      const Spacer(),
+                      _invActionBtn('Editar', Colors.blue, false, () => _editInventoryItem(quoteItemId, name, quantity)),
+                      const SizedBox(width: 6),
+                      _invActionBtn('Eliminar', Colors.red, false, () => _deleteInventoryItem(quoteItemId, name)),
+                    ],
+                  ]),
                 ]),
-              ]),
-              const SizedBox(height: 8),
-              Row(children: [
-                _invActionBtn('Llevar', Colors.amber, llevado >= quantity, () => _inventoryMovement(name, quantity - llevado, 'llevado')),
-                const SizedBox(width: 6),
-                _invActionBtn('Regresar', Colors.green, llevado <= 0, () => _inventoryMovement(name, llevado, 'regresado')),
-                if (quoteItemId != null && isAdmin) ...[
-                  const Spacer(),
-                  _invActionBtn('Editar', Colors.blue, false, () => _editInventoryItem(quoteItemId, name, quantity)),
-                  const SizedBox(width: 6),
-                  _invActionBtn('Eliminar', Colors.red, false, () => _deleteInventoryItem(quoteItemId, name)),
-                ],
-              ]),
-            ]),
-          ),
-        );
-      },
-    );
+              ),
+            );
+          },
+        ),
+      ),
+    ]);
   }
 
   Widget _invActionBtn(String label, Color color, bool disabled, VoidCallback onPressed) {
@@ -945,6 +989,170 @@ class _EventDetailScreenState extends State<EventDetailScreen> with SingleTicker
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
+  }
+
+  Future<void> _inventoryQtyDialog(String itemName, int maxQty, String type) async {
+    if (maxQty <= 0) return;
+    final ctrl = TextEditingController(text: maxQty.toString());
+    final result = await showDialog<Map>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(type == 'llevado' ? 'Llevar $itemName' : 'Regresar $itemName'),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Disponible: $maxQty pz', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          const SizedBox(height: 12),
+          TextField(controller: ctrl, decoration: const InputDecoration(labelText: 'Cantidad', border: OutlineInputBorder()), keyboardType: TextInputType.number),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: type == 'llevado' ? Colors.amber.shade600 : Colors.green.shade600),
+            onPressed: () => Navigator.pop(context, {'quantity': int.tryParse(ctrl.text) ?? maxQty}),
+            child: const Text('Confirmar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (result == null) return;
+    final qty = ((result['quantity'] as int?) ?? maxQty).clamp(1, maxQty).toInt();
+    await _inventoryMovement(itemName, qty, type);
+  }
+
+  Future<void> _finalizeInventory() async {
+    setState(() => _finalizing = true);
+    try {
+      final res = await ApiService().post('/events/${widget.event.id}/finalize-inventory');
+      final list = res is List ? res.cast<Map>() : <Map>[];
+      setState(() => _faltantes = list);
+      if (mounted) _showFaltantesDialog(list);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')));
+    } finally {
+      if (mounted) setState(() => _finalizing = false);
+    }
+  }
+
+  Future<void> _showFaltantesDialog(List<Map> faltantes) async {
+    if (faltantes.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No hay faltantes')));
+      return;
+    }
+    final total = faltantes.fold<double>(0, (s, f) => s + (double.tryParse(f['cost']?.toString() ?? '0') ?? 0));
+    final nf = NumberFormat('#,##0.00', 'es');
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Faltantes', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Text('Productos no regresados', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              const SizedBox(height: 12),
+              Table(
+                columnWidths: const {0: FlexColumnWidth(3), 1: FlexColumnWidth(1.1), 2: FlexColumnWidth(1.4), 3: FlexColumnWidth(1.1), 4: FlexColumnWidth(1.5)},
+                border: TableBorder.all(color: Colors.grey.shade200, width: 0.5),
+                children: [
+                  TableRow(decoration: BoxDecoration(color: Colors.grey.shade100), children: [
+                    _tblCell('Producto', bold: true), _tblCell('Tomados', bold: true, alignRight: true), _tblCell('Regresados', bold: true, alignRight: true), _tblCell('Faltante', bold: true, alignRight: true), _tblCell('Costo', bold: true, alignRight: true),
+                  ]),
+                  ...faltantes.map((f) => TableRow(children: [
+                    _tblCell(f['name'] ?? ''),
+                    _tblCell(f['taken']?.toString() ?? '0', alignRight: true),
+                    _tblCell(f['returned']?.toString() ?? '0', alignRight: true),
+                    _tblCell(f['faltante']?.toString() ?? '0', alignRight: true, red: true),
+                    _tblCell('\$${nf.format(double.tryParse(f['cost']?.toString() ?? '0') ?? 0)}', alignRight: true, red: true),
+                  ])),
+                ],
+              ),
+              const Divider(height: 20),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                const Text('Total faltantes:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                Text('\$${nf.format(total)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.red)),
+              ]),
+            ]),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade600),
+            onPressed: () async {
+              final name = _eventData?['name'] as String? ?? widget.event.name;
+              await _printFaltantesPdf(faltantes, total, name);
+              if (mounted) Navigator.pop(context);
+            },
+            child: const Text('Recibo de faltantes', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tblCell(String text, {bool bold = false, bool alignRight = false, bool red = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+      child: Text(text, textAlign: alignRight ? TextAlign.right : TextAlign.left, style: TextStyle(fontSize: 11, fontWeight: bold ? FontWeight.bold : FontWeight.w400, color: red ? Colors.red.shade600 : Colors.black87)),
+    );
+  }
+
+  Future<void> _printFaltantesPdf(List<Map> faltantes, double total, String eventName) async {
+    final nf = NumberFormat('#,##0.00', 'es');
+    final doc = pw.Document();
+    doc.addPage(pw.Page(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(40),
+      build: (ctx) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
+        pw.Text('REPORTE DE FALTANTES', style: pw.TextStyle(font: pw.Font.helveticaBold(), fontSize: 18, color: PdfColors.red700)),
+        pw.SizedBox(height: 4),
+        pw.Text('Evento: $eventName', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+        pw.SizedBox(height: 16),
+        pw.Table(
+          columnWidths: {0: pw.FlexColumnWidth(3), 1: pw.FlexColumnWidth(1.1), 2: pw.FlexColumnWidth(1.4), 3: pw.FlexColumnWidth(1.1), 4: pw.FlexColumnWidth(1.5)},
+          border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+          children: [
+            pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.grey900), children: [
+              _pdfHeader('Producto'), _pdfHeader('Tomados'), _pdfHeader('Regresados'), _pdfHeader('Faltante'), _pdfHeader('Costo'),
+            ]),
+            ...faltantes.map((f) => pw.TableRow(children: [
+              _pdfCell(f['name'] ?? ''),
+              _pdfCell(f['taken']?.toString() ?? '0', center: true),
+              _pdfCell(f['returned']?.toString() ?? '0', center: true),
+              _pdfCell(f['faltante']?.toString() ?? '0', center: true, red: true),
+              _pdfCell('\$${nf.format(double.tryParse(f['cost']?.toString() ?? '0') ?? 0)}', right: true, red: true),
+            ])),
+            pw.TableRow(children: [
+              _pdfCell('Total', bold: true),
+              _pdfCell(''),
+              _pdfCell(''),
+              _pdfCell(''),
+              _pdfCell('\$${nf.format(total)}', right: true, bold: true, red: true),
+            ]),
+          ],
+        ),
+        pw.SizedBox(height: 24),
+        pw.Text('Generado por Vento — ${DateFormat("d MMM yyyy, HH:mm", 'es').format(DateTime.now())}', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey400)),
+      ]),
+    ));
+    final bytes = await doc.save();
+    final dir = Directory.systemTemp;
+    final file = File('${dir.path}/faltantes_$eventName.pdf');
+    await file.writeAsBytes(bytes);
+    await Share.shareXFiles([XFile(file.path)], text: 'Reporte de faltantes');
+  }
+
+  pw.Widget _pdfHeader(String text) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(6),
+      child: pw.Text(text, style: pw.TextStyle(fontSize: 9, color: PdfColors.white, fontWeight: pw.FontWeight.bold)),
+    );
+  }
+
+  pw.Widget _pdfCell(String text, {bool center = false, bool right = false, bool bold = false, bool red = false}) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(6),
+      child: pw.Text(text, textAlign: center ? pw.TextAlign.center : (right ? pw.TextAlign.right : pw.TextAlign.left), style: pw.TextStyle(fontSize: 9, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal, color: red ? PdfColors.red700 : PdfColors.black)),
+    );
   }
 
   Future<void> _editInventoryItem(String quoteItemId, String currentName, int currentQty) async {

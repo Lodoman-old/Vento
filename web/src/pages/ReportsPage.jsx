@@ -283,7 +283,7 @@ export default function ReportsPage() {
 
     for (const cat of cats) {
       content.push({ text: cat.toUpperCase(), fontSize: 13, bold: true, color: NAVY, characterSpacing: 1, margin: [0, 14, 0, 2] });
-      content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: GOLD, dash: { length: 4, space: 3 } }], margin: [0, 0, 0, 6] });
+      content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: GOLD }], margin: [0, 0, 0, 6] });
 
       const rows = [];
       for (const item of grouped[cat]) {
@@ -295,13 +295,13 @@ export default function ReportsPage() {
           } catch {}
         }
         rows.push([
-          { table: { widths: ["*"], body: [[imgCell]] }, layout: { hLineWidth: () => 0, vLineWidth: () => 0, fillColor: () => "#F5F1E4" } },
+          { table: { widths: ["*"], body: [[imgCell]] }, layout: { hLineWidth: () => 0, vLineWidth: () => 0 } },
           {
             stack: [
               {
                 columns: [
                   { text: item.name, bold: true, fontSize: 11, color: NAVY, width: "auto" },
-                  { canvas: [{ type: "line", x1: 0, y1: 6, x2: 60, y2: 6, lineWidth: 1, lineColor: GOLD, dash: { length: 2, space: 2 } }], width: "*", margin: [4, 0, 4, 0] },
+                  { canvas: [{ type: "line", x1: 0, y1: 6, x2: 60, y2: 6, lineWidth: 1, lineColor: GOLD }], width: "*", margin: [4, 0, 4, 0] },
                   { text: fm(item.unit_price), color: GOLD, bold: true, fontSize: 12, width: "auto" },
                 ],
                 columnGap: 4,
@@ -324,12 +324,6 @@ export default function ReportsPage() {
       pageSize: "A4",
       pageMargins: [36, 36, 36, 40],
       content,
-      background: (page, pageSize) => ({
-        canvas: [
-          { type: "rect", x: 0, y: 0, w: pageSize.width, h: pageSize.height, color: "#FDFBF4" },
-          { type: "rect", x: 26, y: 26, w: pageSize.width - 52, h: pageSize.height - 52, lineColor: GOLD, lineWidth: 1.2 },
-        ],
-      }),
       defaultStyle: { font: "Roboto" },
     }).download("Catalogo_Vento.pdf");
   }

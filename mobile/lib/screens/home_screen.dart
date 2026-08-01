@@ -77,7 +77,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthService>().currentUser;
-    final isAdmin = user?.role == 'admin';
+    final isAdmin = user?.role == 'administrador';
     return Scaffold(
       appBar: AppBar(title: const Text('Vento')),
       drawer: Drawer(

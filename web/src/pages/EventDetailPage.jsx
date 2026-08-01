@@ -33,7 +33,11 @@ export default function EventDetailPage() {
   const [invEditQty, setInvEditQty] = useState(1);
   const [returnItem, setReturnItem] = useState(null);
   const [returnQty, setReturnQty] = useState(1);
+  const [llevarItem, setLlevarItem] = useState(null);
+  const [llevarQty, setLlevarQty] = useState(1);
   const [faltantes, setFaltantes] = useState([]);
+  const [showFaltantes, setShowFaltantes] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", date: "", venue: "", description: "", total_budget: "", status: "" });
   const [editSaving, setEditSaving] = useState(false);
@@ -48,7 +52,12 @@ export default function EventDetailPage() {
         user?.role === "administrador" ? api.get(`/events/${id}/client-access`) : Promise.resolve(null),
         api.get(`/checklist?event_id=${id}`),
       ]);
-      if (evt.status === "fulfilled") setEvent(evt.value);
+      if (evt.status === "fulfilled") {
+        setEvent(evt.value);
+        if (Array.isArray(evt.value?.missing_items) && evt.value.missing_items.length > 0) {
+          setFaltantes(evt.value.missing_items);
+        }
+      }
       else setErrors((e) => ({ ...e, event: evt.reason?.message }));
       if (ag.status === "fulfilled") setAgenda(ag.value);
       if (sup.status === "fulfilled") setSuppliers(sup.value);
@@ -457,16 +466,10 @@ setLoading(false);
               <button onClick={async () => {
                 try {
                   await api.post(`/events/${id}/inventory-movement`, { item_name: returnItem.name, quantity: returnQty, movement_type: 'regresado' });
-                  const faltante = returnItem.llevado - returnQty;
-                  if (faltante > 0) {
-                    const costoUnit = Number(returnItem.no_return_cost) || 0;
-                    setFaltantes([{ name: returnItem.name, taken: returnItem.llevado, returned: returnQty, faltante, cost: faltante * costoUnit, costUnit: costoUnit }]);
-                  } else {
-                    setFaltantes([]);
-                  }
                   setReturnItem(null);
                   const res = await api.get(`/events/${id}/inventory`);
                   setInventory(res);
+                  toast("Devolución registrada");
                 } catch (e) { alert(e.message); }
               }}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition">
@@ -481,8 +484,41 @@ setLoading(false);
         </div>
       )}
 
+      {/* Modal llevar a montaje */}
+      {llevarItem && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl animate-slide-up space-y-4">
+            <h2 className="text-lg font-bold">Llevar {llevarItem.name}</h2>
+            <p className="text-sm text-slate-500">Restante: {llevarItem.quantity - llevarItem.llevado} pz</p>
+            <div>
+              <label className="text-sm text-slate-500 block mb-1">Cantidad a llevar</label>
+              <input type="number" value={llevarQty} min="1" max={llevarItem.quantity - llevarItem.llevado} onChange={(e) => setLlevarQty(Math.min(Number(e.target.value), llevarItem.quantity - llevarItem.llevado))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-vento-cyan" />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button onClick={async () => {
+                try {
+                  await api.post(`/events/${id}/inventory-movement`, { item_name: llevarItem.name, quantity: llevarQty, movement_type: 'llevado' });
+                  setLlevarItem(null);
+                  const res = await api.get(`/events/${id}/inventory`);
+                  setInventory(res);
+                  toast("Salida registrada");
+                } catch (e) { alert(e.message); }
+              }}
+                className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition">
+                Confirmar salida
+              </button>
+              <button onClick={() => setLlevarItem(null)}
+                className="px-4 py-2 border border-slate-200 rounded-lg text-sm hover:bg-slate-50 transition">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal faltantes */}
-      {faltantes.length > 0 && (
+      {showFaltantes && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
           <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl animate-slide-up space-y-4">
             <h2 className="text-lg font-bold text-red-600">Faltantes</h2>
@@ -563,7 +599,7 @@ setLoading(false);
                 className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition">
                 Descargar PDF faltantes
               </button>
-              <button onClick={() => setFaltantes([])}
+              <button onClick={() => setShowFaltantes(false)}
                 className="px-4 py-2 border border-slate-200 rounded-lg text-sm hover:bg-slate-50 transition">
                 Cerrar
               </button>
@@ -649,6 +685,29 @@ setLoading(false);
         <div>
           <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
             <p className="text-sm text-slate-500">Inventario para montaje</p>
+            <div className="flex gap-2 flex-wrap">
+              {event?.missing_items?.length > 0 && (
+                <button onClick={() => setShowFaltantes(true)}
+                  className="text-xs px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 rounded-lg hover:bg-red-100 transition">
+                  Ver faltantes ({event.missing_items.length})
+                </button>
+              )}
+              <button onClick={async () => {
+                if (!confirm("¿Finalizar los regresos? Se calcularán los faltantes de este evento.")) return;
+                try {
+                  setFinalizing(true);
+                  const res = await api.post(`/events/${id}/finalize-inventory`);
+                  setFaltantes(res);
+                  setEvent((prev) => ({ ...prev, missing_items: res }));
+                  setShowFaltantes(true);
+                  toast("Faltantes calculados");
+                } catch (e) { toast(e.message, "error"); } finally { setFinalizing(false); }
+              }}
+                disabled={finalizing}
+                className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-40">
+                {finalizing ? "Calculando..." : "Finalizar regresos"}
+              </button>
+            </div>
           </div>
           {loadingInventory ? (
             <p className="text-sm text-slate-400">Calculando inventario...</p>
@@ -674,7 +733,7 @@ setLoading(false);
                     </div>
                   </div>
                   <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 flex gap-2 flex-wrap">
-                    <button onClick={async () => { try { await api.post(`/events/${id}/inventory-movement`, { item_name: item.name, quantity: item.quantity - item.llevado, movement_type: 'llevado' }); const res = await api.get(`/events/${id}/inventory`); setInventory(res); } catch (e) { alert(e.message); } }}
+                    <button onClick={() => { setLlevarItem(item); setLlevarQty(Math.max(1, item.quantity - item.llevado)); }}
                       disabled={item.llevado >= item.quantity}
                       className="text-xs px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition disabled:opacity-40 disabled:cursor-not-allowed">
                       Llevar a montaje

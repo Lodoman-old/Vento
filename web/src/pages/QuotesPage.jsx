@@ -157,10 +157,8 @@ export default function QuotesPage() {
     } catch (err) { toast(err.message, "error"); }
   }
 
-  async function generatePdf(quote) {
-    setGeneratingPdf(quote.id);
-    try {
-      const [full, company] = await Promise.all([
+  async function buildQuoteDoc(quote) {
+    const [full, company] = await Promise.all([
         api.get(`/quotes/${quote.id}`),
         api.get("/settings"),
       ]);
@@ -366,6 +364,13 @@ export default function QuotesPage() {
         defaultStyle: { fontSize: 9, color: "#334155", font: "Roboto" },
       };
 
+      return { docDefinition, full };
+  }
+
+  async function generatePdf(quote) {
+    setGeneratingPdf(quote.id);
+    try {
+      const { docDefinition, full } = await buildQuoteDoc(quote);
       pdfMake.createPdf(docDefinition).download(`Cotizacion_${full.client_name || "sin_cliente"}.pdf`);
     } catch (err) {
       console.error("PDF error:", err);
@@ -377,16 +382,7 @@ export default function QuotesPage() {
   async function shareWhatsApp(quote) {
     try {
       const full = await api.get(`/quotes/${quote.id}`);
-      const items = (full.items || []).filter((i) => !i.is_supplier_cost);
       const fm = (n) => `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-      let detail = items.map((i) =>
-        `${i.item_name} x${i.quantity} = ${fm(i.subtotal)}`
-      ).join("\n");
-
-      const supTotal = (full.items || []).filter((i) => i.is_supplier_cost).reduce((s, i) => s + Number(i.subtotal), 0);
-      if (supTotal > 0) detail += `\n\nCostos de proveedores: ${fm(supTotal)}`;
-
       const origin = window.location.origin;
 
       // Fetch/create client access credentials
@@ -411,13 +407,24 @@ export default function QuotesPage() {
         } catch {}
       }
 
-      const message = encodeURIComponent(
-        `Hola! Te comparto la cotizaci\u00f3n de Vento para "${full.client_name || "tu evento"}".\n\n` +
-        `Productos:\n${detail}\n\n` +
-        `Total: ${fm(full.total)}` +
-        portalMsg
-      );
-      window.open(`https://wa.me/${quote.client_phone}?text=${message}`, "_blank");
+      const message = `Hola! Te comparto la cotizaci\u00f3n de Vento para "${full.client_name || "tu evento"}".\n\nTotal: ${fm(full.total)}${portalMsg}`;
+
+      const { docDefinition } = await buildQuoteDoc(quote);
+      const blob = await new Promise((resolve) => pdfMake.createPdf(docDefinition).getBlob(resolve));
+      const file = new File([blob], `Cotizacion_${full.client_name || "sin_cliente"}.pdf`, { type: "application/pdf" });
+
+      const shareData = { files: [file], text: message };
+      if (navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.name;
+      a.click();
+      URL.revokeObjectURL(url);
+      window.open(`https://wa.me/${quote.client_phone}?text=${encodeURIComponent(message)}`, "_blank");
     } catch {
       const message = encodeURIComponent(
         `Hola! Te comparto la cotizaci\u00f3n de Vento para "${quote.client_name || "tu evento"}".\n\nTotal: $${Number(quote.total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`

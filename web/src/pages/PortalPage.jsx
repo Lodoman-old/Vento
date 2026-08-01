@@ -3,6 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../hooks/useAuth";
 import { fmtDateTime, fmtTime, fmtMoney } from "../lib/format";
+import pdfMake from "pdfmake/build/pdfmake";
+import pdfFonts from "pdfmake/build/vfs_fonts";
+
+pdfMake.vfs = pdfFonts.vfs;
 
 export default function PortalPage() {
   const { user, logout } = useAuth();
@@ -61,6 +65,54 @@ export default function PortalPage() {
   const completedAgenda = agenda.filter((a) => a.is_completed).length;
   const hiredSuppliers = suppliers.filter((s) => s.contract_status === "contratado").length;
   const statusMap = { activo: "Activo", borrador: "Borrador", completado: "Completado", cancelado: "Cancelado" };
+
+  const downloadFaltantesPdf = () => {
+    if (!event?.missing_items?.length) return;
+    const missing = event.missing_items;
+    const total = missing.reduce((s, f) => s + (Number(f.cost) || 0), 0);
+    try {
+      const docDef = {
+        pageSize: "A4",
+        pageMargins: [40, 50, 40, 50],
+        content: [
+          { text: "REPORTE DE FALTANTES", fontSize: 20, bold: true, color: "#DC2626", margin: [0, 0, 0, 16] },
+          { text: `Evento: ${event?.name || ""}`, fontSize: 10, margin: [0, 0, 0, 4], color: "#334155" },
+          { text: `Fecha: ${event?.date ? new Date(event.date).toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" }) : ""}`, fontSize: 10, margin: [0, 0, 0, 16], color: "#64748B" },
+          { table: { headerRows: 1, widths: ["*", 50, 60, 50, 60], body: [
+            [
+              { text: "Producto", style: "tableHeader" },
+              { text: "Tomados", style: "tableHeader", alignment: "center" },
+              { text: "Regresados", style: "tableHeader", alignment: "center" },
+              { text: "Faltante", style: "tableHeader", alignment: "center" },
+              { text: "Costo", style: "tableHeader", alignment: "right" },
+            ],
+            ...missing.map((f) => [
+              f.name,
+              { text: String(f.taken ?? ""), alignment: "center" },
+              { text: String(f.returned ?? ""), alignment: "center" },
+              { text: String(f.faltante ?? ""), alignment: "center", color: "#DC2626", bold: true },
+              { text: `$${(Number(f.cost) || 0).toLocaleString()}`, alignment: "right", color: "#DC2626" },
+            ]),
+            [
+              { text: "Total", colSpan: 4, alignment: "right", bold: true, fontSize: 12 },
+              {},
+              {},
+              {},
+              { text: `$${total.toLocaleString()}`, alignment: "right", bold: true, fontSize: 12, color: "#DC2626" },
+            ],
+          ]}, layout: {
+            hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => "#E2E8F0",
+            paddingLeft: () => 8, paddingRight: () => 8, paddingTop: () => 6, paddingBottom: () => 6,
+            fillColor: (i) => i === 0 ? "#0F172A" : null,
+          }},
+          { text: `\nGenerado por Vento — ${new Date().toLocaleString("es-MX")}`, fontSize: 8, color: "#94A3B8", margin: [0, 20, 0, 0] },
+        ],
+        styles: { tableHeader: { bold: true, fontSize: 9, color: "#FFFFFF" } },
+        defaultStyle: { fontSize: 9, color: "#334155", font: "Roboto" },
+      };
+      pdfMake.createPdf(docDef).download(`Faltantes_${event?.name || "evento"}.pdf`);
+    } catch (e) { console.error("PDF faltantes error:", e); }
+  };
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -142,6 +194,46 @@ export default function PortalPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {event?.missing_items?.length > 0 && (
+        <div className="bg-white rounded-xl p-5 border border-red-200 mb-4">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+            <div>
+              <h3 className="text-sm font-semibold text-red-600">Faltantes de inventario</h3>
+              <p className="text-xs text-slate-500">Productos no regresados después del evento</p>
+            </div>
+            <button onClick={downloadFaltantesPdf}
+              className="text-xs px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+              Descargar recibo de faltantes
+            </button>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-slate-100 text-slate-400">
+                <th className="text-left py-2 font-medium">Producto</th>
+                <th className="text-right py-2 font-medium">Cant.</th>
+                <th className="text-right py-2 font-medium">Costo</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {event.missing_items.map((f, i) => (
+                <tr key={i}>
+                  <td className="py-2 text-slate-700">{f.name}</td>
+                  <td className="py-2 text-right text-slate-500">{f.faltante}</td>
+                  <td className="py-2 text-right text-slate-700 font-medium">{fmtMoney(f.cost)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-slate-100">
+                <td className="py-2 font-bold">Total faltantes</td>
+                <td />
+                <td className="py-2 text-right font-bold text-red-600">{fmtMoney(event.missing_items.reduce((s, f) => s + (Number(f.cost) || 0), 0))}</td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       )}
 
