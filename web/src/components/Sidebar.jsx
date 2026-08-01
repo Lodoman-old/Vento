@@ -65,6 +65,15 @@ export default function Sidebar({ open, onClose }) {
             )}
           </NavLink>
         ))}
+        <button
+          onClick={logout}
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-white/5 w-full text-left transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          Cerrar sesión
+        </button>
       </nav>
 
       <div className="p-4 border-t border-white/10">
@@ -72,9 +81,6 @@ export default function Sidebar({ open, onClose }) {
           `block text-sm mb-1 transition ${isActive ? "text-vento-cyan" : "text-white/60 hover:text-white/80"}`
         }>{user?.display_name || user?.name}</NavLink>
         <p className="text-xs text-white/40 capitalize">{user?.role}</p>
-        <button onClick={logout} className="mt-2 text-xs text-red-400 hover:text-red-300">
-          Cerrar sesión
-        </button>
       </div>
     </aside>
   );
