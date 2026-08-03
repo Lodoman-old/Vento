@@ -624,6 +624,12 @@ export default function QuotesPage() {
                     Reabrir
                   </button>
                 )}
+                {user?.role === "administrador" && (q.status === "aceptado" || q.status === "rechazado") && q.client_phone && (
+                  <button onClick={() => { const win = window.open("", "_blank"); shareWhatsApp(q, win); }}
+                    className="text-[10px] px-2 py-1 bg-green-500 text-white rounded-full hover:bg-green-600 transition">
+                    Reenviar
+                  </button>
+                )}
                 {user?.role === "administrador" && (
                   <button onClick={() => setDeleteConfirm(q.id)}
                     className="text-xs px-2.5 py-1.5 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition">
