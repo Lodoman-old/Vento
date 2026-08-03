@@ -297,11 +297,11 @@ export default function ReportsPage() {
         rows.push([
           { table: { widths: ["*"], body: [[imgCell]] }, layout: { hLineWidth: () => 0, vLineWidth: () => 0 } },
           {
+            verticalAlignment: "middle",
             stack: [
               {
                 columns: [
                   { text: item.name, bold: true, fontSize: 11, color: NAVY, width: "auto" },
-                  { canvas: [{ type: "line", x1: 0, y1: 6, x2: 60, y2: 6, lineWidth: 1, lineColor: GOLD }], width: "*", margin: [4, 0, 4, 0] },
                   { text: fm(item.unit_price), color: GOLD, bold: true, fontSize: 12, width: "auto" },
                 ],
                 columnGap: 4,
