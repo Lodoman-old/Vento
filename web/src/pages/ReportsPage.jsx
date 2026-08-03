@@ -102,6 +102,7 @@ export default function ReportsPage() {
   const [end, setEnd] = useState(() => new Date().toISOString().slice(0, 10));
   const [catFilter, setCatFilter] = useState("");
   const printRef = useRef();
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     api.get("/reports/categories").then(setCategories).catch(() => {});
@@ -301,8 +302,8 @@ export default function ReportsPage() {
             stack: [
               {
                 columns: [
-                  { text: item.name, bold: true, fontSize: 11, color: NAVY, width: "auto" },
-                  { text: fm(item.unit_price), color: GOLD, bold: true, fontSize: 12, width: "auto" },
+                  { text: item.name, bold: true, fontSize: 11, color: NAVY, width: "*" },
+                  { text: fm(item.unit_price), color: GOLD, bold: true, fontSize: 12, width: "auto", alignment: "right" },
                 ],
                 columnGap: 4,
               },
@@ -320,12 +321,13 @@ export default function ReportsPage() {
 
     content.push({ text: `${company} — Eventos en perfecta sincronía`, alignment: "center", color: MUTED, fontSize: 8, margin: [0, 18, 0, 0] });
 
-    pdfMake.createPdf({
+    const blob = await new Promise((resolve) => pdfMake.createPdf({
       pageSize: "A4",
       pageMargins: [36, 36, 36, 40],
       content,
       defaultStyle: { font: "Roboto" },
-    }).download("Catalogo_Vento.pdf");
+    }).getBlob(resolve));
+    downloadBlob(blob, "Catalogo_Vento.pdf");
   }
 
   function exportCatalogExcel() {
@@ -333,12 +335,17 @@ export default function ReportsPage() {
       catalog.map((i) => [i.name, i.category, i.description || "", fm(i.unit_price), i.stock_available != null ? i.stock_available : ""]));
   }
 
-  const handleExportPdf = () => {
-    if (tab === "events") exportEventsPdf();
-    else if (tab === "clients") exportClientsPdf();
-    else if (tab === "suppliers") exportSuppliersPdf();
-    else if (tab === "catalog") exportCatalogPdf();
-    else if (tab === "financial") exportFinancialPdf();
+  const handleExportPdf = async () => {
+    setGenerating(true);
+    try {
+      if (tab === "events") await exportEventsPdf();
+      else if (tab === "clients") await exportClientsPdf();
+      else if (tab === "suppliers") await exportSuppliersPdf();
+      else if (tab === "catalog") await exportCatalogPdf();
+      else if (tab === "financial") await exportFinancialPdf();
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handleExportExcel = () => {
@@ -362,7 +369,8 @@ export default function ReportsPage() {
             Exportar Excel
           </button>
           <button onClick={handleExportPdf}
-            className="px-3 py-1.5 bg-vento-navy text-amber-400 rounded-lg text-sm font-medium hover:bg-slate-800 transition">
+            disabled={generating}
+            className="px-3 py-1.5 bg-vento-navy text-amber-400 rounded-lg text-sm font-medium hover:bg-slate-800 transition disabled:opacity-50 disabled:cursor-not-allowed">
             {tab === "catalog" ? "PDF menú" : "Exportar PDF"}
           </button>
           <button onClick={handlePrint}
@@ -642,6 +650,15 @@ export default function ReportsPage() {
           </div>
         )}
       </div>
+
+      {generating && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl p-8 w-full max-w-xs shadow-xl flex flex-col items-center gap-4 animate-slide-up">
+            <div className="w-10 h-10 border-4 border-slate-200 border-t-amber-500 rounded-full animate-spin" />
+            <p className="text-slate-700 font-medium">Generando PDF...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
