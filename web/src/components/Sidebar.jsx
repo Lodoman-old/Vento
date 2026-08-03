@@ -12,6 +12,7 @@ const links = [
   { to: "/notifications", label: "Notificaciones" },
   { to: "/users", label: "Usuarios", adminOnly: true },
   { to: "/reports", label: "Reportes", adminOnly: true },
+  { to: "/profile", label: null },
   { to: "/settings", label: "Configuración", adminOnly: true },
 ];
 
@@ -57,7 +58,7 @@ export default function Sidebar({ open, onClose }) {
               }`
             }
           >
-            <span className="flex-1">{link.label}</span>
+            <span className="flex-1">{link.label ?? (user?.display_name || user?.name || "Mi perfil")}</span>
             {link.to === "/notifications" && unreadCount > 0 && (
               <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                 {unreadCount > 99 ? "99+" : unreadCount}
@@ -75,13 +76,6 @@ export default function Sidebar({ open, onClose }) {
           Cerrar sesión
         </button>
       </nav>
-
-      <div className="p-4 border-t border-white/10">
-        <NavLink to="/profile" className={({ isActive }) =>
-          `block text-sm mb-1 transition ${isActive ? "text-vento-cyan" : "text-white/60 hover:text-white/80"}`
-        }>{user?.display_name || user?.name}</NavLink>
-        <p className="text-xs text-white/40 capitalize">{user?.role}</p>
-      </div>
     </aside>
   );
 }
