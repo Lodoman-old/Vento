@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { api } from "../lib/api";
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
+import { useToast } from "../components/Toast";
 
 pdfMake.vfs = pdfFonts.vfs;
 
@@ -75,19 +76,25 @@ function imageToDataUrl(url) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
+    const timer = setTimeout(() => reject(new Error("timeout")), 8000);
     img.onload = () => {
+      clearTimeout(timer);
       const canvas = document.createElement("canvas");
       canvas.width = img.width;
       canvas.height = img.height;
       canvas.getContext("2d").drawImage(img, 0, 0);
       resolve(canvas.toDataURL("image/jpeg", 0.8));
     };
-    img.onerror = reject;
+    img.onerror = () => {
+      clearTimeout(timer);
+      reject(new Error("error"));
+    };
     img.src = url;
   });
 }
 
 export default function ReportsPage() {
+  const toast = useToast();
   const [tab, setTab] = useState("events");
   const [events, setEvents] = useState([]);
   const [clients, setClients] = useState([]);
@@ -321,13 +328,12 @@ export default function ReportsPage() {
 
     content.push({ text: `${company} — Eventos en perfecta sincronía`, alignment: "center", color: MUTED, fontSize: 8, margin: [0, 18, 0, 0] });
 
-    const blob = await new Promise((resolve) => pdfMake.createPdf({
+    pdfMake.createPdf({
       pageSize: "A4",
       pageMargins: [36, 36, 36, 40],
       content,
       defaultStyle: { font: "Roboto" },
-    }).getBlob(resolve));
-    downloadBlob(blob, "Catalogo_Vento.pdf");
+    }).download("Catalogo_Vento.pdf");
   }
 
   function exportCatalogExcel() {
@@ -343,6 +349,8 @@ export default function ReportsPage() {
       else if (tab === "suppliers") await exportSuppliersPdf();
       else if (tab === "catalog") await exportCatalogPdf();
       else if (tab === "financial") await exportFinancialPdf();
+    } catch {
+      toast("No se pudo generar el PDF. Intenta de nuevo.", "error");
     } finally {
       setGenerating(false);
     }
