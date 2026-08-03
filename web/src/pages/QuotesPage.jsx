@@ -24,6 +24,7 @@ export default function QuotesPage() {
   const [supplierTotalPreview, setSupplierTotalPreview] = useState(0);
   const [expandedQuote, setExpandedQuote] = useState(null);
   const [generatingPdf, setGeneratingPdf] = useState(null);
+  const [sharing, setSharing] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   useEffect(() => {
@@ -175,8 +176,11 @@ export default function QuotesPage() {
       let logoImage = null;
       if (company?.logo_url) {
         try {
-          const resp = await fetch(company.logo_url);
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 8000);
+          const resp = await fetch(company.logo_url, { signal: controller.signal });
           const blob = await resp.blob();
+          clearTimeout(timer);
           const reader = new FileReader();
           const customLogo = await new Promise((resolve) => {
             reader.onload = () => resolve(reader.result);
@@ -380,17 +384,18 @@ export default function QuotesPage() {
   }
 
   async function shareWhatsApp(quote, win) {
+    const fm = (n) => `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const openWa = (message) => {
       const url = `https://wa.me/${quote.client_phone}?text=${encodeURIComponent(message)}`;
       if (win) win.location.href = url;
       else window.open(url, "_blank");
     };
+
+    // Mensaje con las credenciales activas del portal; solo se regeneran si no hay acceso o falta la contraseña visible
+    let message = `Hola! Te comparto la cotizaci\u00f3n de Vento para "${quote.client_name || "tu evento"}".\n\nTotal: ${fm(quote.total)}`;
     try {
       const full = await api.get(`/quotes/${quote.id}`);
-      const fm = (n) => `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       const origin = window.location.origin;
-
-      // Usar credenciales activas del portal; solo se regeneran si no hay acceso o falta la contraseña visible
       let portalMsg = `\n\nPortal: ${origin}/portal`;
       try {
         const existing = await api.get(`/events/${full.event_id}/client-access`);
@@ -413,31 +418,41 @@ export default function QuotesPage() {
           }
         } catch {}
       }
+      message = `Hola! Te comparto la cotizaci\u00f3n de Vento para "${full.client_name || "tu evento"}".\n\nTotal: ${fm(full.total)}${portalMsg}`;
+    } catch {}
 
-      const message = `Hola! Te comparto la cotizaci\u00f3n de Vento para "${full.client_name || "tu evento"}".\n\nTotal: ${fm(full.total)}${portalMsg}`;
-
-      // Intenta compartir con el PDF adjunto (móvil / navegadores compatibles)
+    // Construye el PDF (con modal) y solo después envía por WhatsApp
+    setSharing(true);
+    let ready = false;
+    try {
       const { docDefinition } = await buildQuoteDoc(quote);
-      const blob = await new Promise((resolve) => pdfMake.createPdf(docDefinition).getBlob(resolve));
-      const file = new File([blob], `Cotizacion_${full.client_name || "sin_cliente"}.pdf`, { type: "application/pdf" });
-
+      const blob = await Promise.race([
+        new Promise((resolve) => pdfMake.createPdf(docDefinition).getBlob(resolve)),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 20000)),
+      ]);
+      const file = new File([blob], `Cotizacion_${quote.client_name || "sin_cliente"}.pdf`, { type: "application/pdf" });
       const shareData = { files: [file], text: message };
       if (navigator.canShare && navigator.canShare(shareData)) {
         await navigator.share(shareData);
+        ready = true;
         return;
       }
-      // Desktop: descarga el PDF y abre WhatsApp con el mensaje
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = file.name;
       a.click();
       URL.revokeObjectURL(url);
+      ready = true;
+    } catch {} finally {
+      setSharing(false);
+    }
+
+    if (ready) {
       openWa(message);
-    } catch {
-      openWa(
-        `Hola! Te comparto la cotizaci\u00f3n de Vento para "${quote.client_name || "tu evento"}".\n\nTotal: $${Number(quote.total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      );
+    } else {
+      toast("No se pudo generar el PDF; se envi\u00f3 solo el mensaje.", "error");
+      openWa(message);
     }
   }
 
@@ -1051,6 +1066,15 @@ function QuoteDetail({ quoteId }) {
                 Ahora no
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {sharing && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl p-8 w-full max-w-xs shadow-xl flex flex-col items-center gap-4 animate-slide-up">
+            <div className="w-10 h-10 border-4 border-slate-200 border-t-amber-500 rounded-full animate-spin" />
+            <p className="text-slate-700 font-medium">Generando PDF...</p>
           </div>
         </div>
       )}
