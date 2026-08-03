@@ -379,7 +379,12 @@ export default function QuotesPage() {
     }
   }
 
-  async function shareWhatsApp(quote) {
+  async function shareWhatsApp(quote, win) {
+    const openWa = (message) => {
+      const url = `https://wa.me/${quote.client_phone}?text=${encodeURIComponent(message)}`;
+      if (win) win.location.href = url;
+      else window.open(url, "_blank");
+    };
     try {
       const full = await api.get(`/quotes/${quote.id}`);
       const fm = (n) => `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -409,6 +414,7 @@ export default function QuotesPage() {
 
       const message = `Hola! Te comparto la cotizaci\u00f3n de Vento para "${full.client_name || "tu evento"}".\n\nTotal: ${fm(full.total)}${portalMsg}`;
 
+      // Intenta compartir con el PDF adjunto (móvil / navegadores compatibles)
       const { docDefinition } = await buildQuoteDoc(quote);
       const blob = await new Promise((resolve) => pdfMake.createPdf(docDefinition).getBlob(resolve));
       const file = new File([blob], `Cotizacion_${full.client_name || "sin_cliente"}.pdf`, { type: "application/pdf" });
@@ -418,18 +424,18 @@ export default function QuotesPage() {
         await navigator.share(shareData);
         return;
       }
+      // Desktop: descarga el PDF y abre WhatsApp con el mensaje
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = file.name;
       a.click();
       URL.revokeObjectURL(url);
-      window.open(`https://wa.me/${quote.client_phone}?text=${encodeURIComponent(message)}`, "_blank");
+      openWa(message);
     } catch {
-      const message = encodeURIComponent(
+      openWa(
         `Hola! Te comparto la cotizaci\u00f3n de Vento para "${quote.client_name || "tu evento"}".\n\nTotal: $${Number(quote.total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
       );
-      window.open(`https://wa.me/${quote.client_phone}?text=${message}`, "_blank");
     }
   }
 
@@ -588,7 +594,11 @@ export default function QuotesPage() {
               <div className="flex items-center gap-2 ml-4">
                 {user?.role === "administrador" && (q.status === "borrador" || q.status === "enviado") && (
                   <>
-                    <button onClick={() => { updateStatus(q.id, "enviado"); if (q.client_phone) shareWhatsApp(q); }}
+                    <button onClick={() => {
+                      const win = q.client_phone ? window.open("", "_blank") : null;
+                      updateStatus(q.id, "enviado");
+                      if (q.client_phone) shareWhatsApp(q, win);
+                    }}
                       className="text-[10px] px-2 py-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition">
                       Enviar{q.client_phone ? " + WhatsApp" : ""}
                     </button>
@@ -624,12 +634,6 @@ export default function QuotesPage() {
                   className="text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition disabled:opacity-50">
                   {generatingPdf === q.id ? "..." : "PDF"}
                 </button>
-                {q.client_phone && (
-                  <button onClick={() => shareWhatsApp(q)}
-                    className="text-xs px-2.5 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition">
-                    WhatsApp
-                  </button>
-                )}
                 <button onClick={() => setExpandedQuote(expandedQuote === q.id ? null : q.id)}
                   className="text-xs text-slate-400 hover:text-slate-600 transition">
                   {expandedQuote === q.id ? "▲" : "▼"}
