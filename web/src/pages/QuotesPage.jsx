@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../hooks/useAuth";
@@ -24,7 +24,9 @@ export default function QuotesPage() {
   const [supplierTotalPreview, setSupplierTotalPreview] = useState(0);
   const [expandedQuote, setExpandedQuote] = useState(null);
   const [generatingPdf, setGeneratingPdf] = useState(null);
-  const [sharing, setSharing] = useState(false);
+  const [shareStep, setShareStep] = useState(null);
+  const shareFileRef = useRef(null);
+  const shareMessageRef = useRef(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   useEffect(() => {
@@ -421,39 +423,52 @@ export default function QuotesPage() {
       message = `Hola! Te comparto la cotizaci\u00f3n de Vento para "${full.client_name || "tu evento"}".\n\nTotal: ${fm(full.total)}${portalMsg}`;
     } catch {}
 
-    // Construye el PDF (con modal) y solo después envía por WhatsApp
-    setSharing(true);
-    let ready = false;
+    // Construye el PDF (con modal); WhatsApp se abre solo al confirmar con el botón Aceptar
+    setShareStep("generating");
+    let file = null;
     try {
       const { docDefinition } = await buildQuoteDoc(quote);
       const blob = await Promise.race([
         pdfMake.createPdf(docDefinition).getBlob(),
         new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 20000)),
       ]);
-      const file = new File([blob], `Cotizacion_${quote.client_name || "sin_cliente"}.pdf`, { type: "application/pdf" });
+      file = new File([blob], `Cotizacion_${quote.client_name || "sin_cliente"}.pdf`, { type: "application/pdf" });
+    } catch (err) {
+      console.error("PDF share error:", err);
+    }
+
+    shareFileRef.current = file;
+    shareMessageRef.current = message;
+    setShareStep(file ? "ready" : "error");
+  }
+
+  async function confirmShare() {
+    const message = shareMessageRef.current || "";
+    const file = shareFileRef.current;
+    setShareStep(null);
+
+    if (file) {
+      // Móvil: el clic en Aceptar es un gesto de usuario, así que el share sheet puede adjuntar el PDF
       const shareData = { files: [file], text: message };
       if (navigator.canShare && navigator.canShare(shareData)) {
-        await navigator.share(shareData);
-        ready = true;
-        return;
+        try {
+          await navigator.share(shareData);
+          return;
+        } catch {}
       }
-      const url = URL.createObjectURL(blob);
+      // Escritorio: descarga el PDF
+      const url = URL.createObjectURL(file);
       const a = document.createElement("a");
       a.href = url;
       a.download = file.name;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
-      ready = true;
-    } catch {} finally {
-      setSharing(false);
-    }
-
-    if (ready) {
-      openWa(message);
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
     } else {
       toast("No se pudo generar el PDF; se envi\u00f3 solo el mensaje.", "error");
-      openWa(message);
     }
+    openWa(message);
   }
 
   const statusColors = {
@@ -1070,11 +1085,53 @@ function QuoteDetail({ quoteId }) {
         </div>
       )}
 
-      {sharing && (
+      {shareStep && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-          <div className="bg-white rounded-2xl p-8 w-full max-w-xs shadow-xl flex flex-col items-center gap-4 animate-slide-up">
-            <div className="w-10 h-10 border-4 border-slate-200 border-t-amber-500 rounded-full animate-spin" />
-            <p className="text-slate-700 font-medium">Generando PDF...</p>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl flex flex-col items-center gap-3 animate-slide-up">
+            {shareStep === "generating" && (
+              <>
+                <div className="w-10 h-10 border-4 border-slate-200 border-t-amber-500 rounded-full animate-spin" />
+                <p className="text-slate-700 font-medium">Generando PDF...</p>
+                <p className="text-xs text-slate-500 text-center leading-relaxed">
+                  Se descargar\u00e1 el PDF y luego se abrir\u00e1 WhatsApp con el mensaje listo.
+                </p>
+              </>
+            )}
+
+            {shareStep === "ready" && (
+              <>
+                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-xl">\u2713</div>
+                <p className="text-slate-700 font-medium">PDF generado</p>
+                <p className="text-xs text-slate-500 text-center leading-relaxed">
+                  Al presionar \u201cAceptar\u201d se abrir\u00e1 WhatsApp con el mensaje listo.<br />
+                  En computadora: arrastra el PDF descargado a la conversaci\u00f3n para adjuntarlo.
+                </p>
+                <button onClick={confirmShare}
+                  className="w-full px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition">
+                  Aceptar y abrir WhatsApp
+                </button>
+                <button onClick={() => setShareStep(null)} className="text-xs text-slate-400 hover:text-slate-600">
+                  Cancelar
+                </button>
+              </>
+            )}
+
+            {shareStep === "error" && (
+              <>
+                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-xl">\u26A0</div>
+                <p className="text-slate-700 font-medium">No se pudo generar el PDF</p>
+                <p className="text-xs text-slate-500 text-center leading-relaxed">
+                  Se abrir\u00e1 WhatsApp de todos modos con el mensaje y las credenciales del portal.
+                </p>
+                <button onClick={confirmShare}
+                  className="w-full px-4 py-2 bg-vento-navy text-amber-400 rounded-lg text-sm font-medium hover:bg-slate-800 transition">
+                  Abrir WhatsApp
+                </button>
+                <button onClick={() => setShareStep(null)} className="text-xs text-slate-400 hover:text-slate-600">
+                  Cancelar
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
