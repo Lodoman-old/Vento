@@ -427,7 +427,7 @@ export default function QuotesPage() {
     try {
       const { docDefinition } = await buildQuoteDoc(quote);
       const blob = await Promise.race([
-        new Promise((resolve) => pdfMake.createPdf(docDefinition).getBlob(resolve)),
+        pdfMake.createPdf(docDefinition).getBlob(),
         new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 20000)),
       ]);
       const file = new File([blob], `Cotizacion_${quote.client_name || "sin_cliente"}.pdf`, { type: "application/pdf" });
