@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../hooks/useAuth";
+import { useToast } from "../components/Toast";
 import { fmtDateTime, fmtTime, fmtMoney } from "../lib/format";
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
@@ -10,6 +11,7 @@ pdfMake.vfs = pdfFonts.vfs;
 
 export default function PortalPage() {
   const { user, logout } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
   const [event, setEvent] = useState(null);
   const [agenda, setAgenda] = useState([]);
@@ -289,9 +291,9 @@ export default function PortalPage() {
                 try {
                   await api.post(`/quotes/${requestChange.quote.id}/request-change`, { description: requestChange.description });
                   setRequestChange({ show: false, description: "", quote: null });
-                  alert("Cotización reabierta. El organizador recibirá una notificación.");
+                  toast("Cotización reabierta. El organizador recibirá una notificación.");
                   window.location.reload();
-                } catch (e) { alert("Error: " + e.message); }
+                } catch (e) { toast(e.message, "error"); }
               }}
                 className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition">
                 Reabrir cotización
@@ -340,7 +342,7 @@ export default function PortalPage() {
                             const events = res.data || res;
                             if (events.length > 0) setEvent(events[0]);
                             window.location.reload();
-                          } catch (e) { alert("Error: " + e.message); }
+                          } catch (e) { toast(e.message, "error"); }
                         }}
                           className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition">
                           Aceptar cotización

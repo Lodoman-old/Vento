@@ -470,7 +470,7 @@ setLoading(false);
                   const res = await api.get(`/events/${id}/inventory`);
                   setInventory(res);
                   toast("Devolución registrada");
-                } catch (e) { alert(e.message); }
+                } catch (e) { toast(e.message, "error"); }
               }}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition">
                 Confirmar devolución
@@ -503,7 +503,7 @@ setLoading(false);
                   const res = await api.get(`/events/${id}/inventory`);
                   setInventory(res);
                   toast("Salida registrada");
-                } catch (e) { alert(e.message); }
+                } catch (e) { toast(e.message, "error"); }
               }}
                 className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition">
                 Confirmar salida
