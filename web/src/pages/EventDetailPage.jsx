@@ -265,7 +265,7 @@ setLoading(false);
             {showClientCreds && (
               <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs space-y-1">
                 <p><span className="font-medium">Usuario:</span> {showClientCreds.username || clientAccess?.username}</p>
-                <p><span className="font-medium">Contraseña:</span> {showClientCreds.password || "Confidencial"}</p>
+                <p><span className="font-medium">Contraseña:</span> {showClientCreds.password || showClientCreds.password_plain || clientAccess?.password_plain || "Confidencial"}</p>
                 <p className="text-yellow-700">Comparte estas credenciales con el cliente. Expiran automáticamente.</p>
               </div>
             )}

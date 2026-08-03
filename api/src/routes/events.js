@@ -296,7 +296,7 @@ router.delete("/:id/staff/:userId", authorize("administrador"), async (req, res)
 router.get("/:id/client-access", authorize("administrador"), async (req, res) => {
   try {
     const { rows } = await query(
-      `SELECT u.id, u.display_name, u.username, u.role, u.is_active, u.expires_at
+      `SELECT u.id, u.display_name, u.username, u.role, u.is_active, u.expires_at, u.password_plain
        FROM users u JOIN events e ON e.client_id = u.id
        WHERE e.id = $1 AND u.role = 'cliente'`,
       [req.params.id]
@@ -322,11 +322,11 @@ router.post("/:id/client-access", authorize("administrador"), async (req, res) =
     expiresAt.setDate(expiresAt.getDate() + 1);
 
     const { rows: user } = await query(
-      `INSERT INTO users (display_name, username, password_hash, role, expires_at)
-       VALUES ($1, $2, $3, 'cliente', $4)
-       ON CONFLICT (username) DO UPDATE SET password_hash = $3, expires_at = $4, is_active = true
+      `INSERT INTO users (display_name, username, password_hash, role, expires_at, password_plain)
+       VALUES ($1, $2, $3, 'cliente', $4, $5)
+       ON CONFLICT (username) DO UPDATE SET password_hash = $3, expires_at = $4, is_active = true, password_plain = $5
        RETURNING id`,
-      [`Cliente ${dayStr}`, username, hash, expiresAt]
+      [`Cliente ${dayStr}`, username, hash, expiresAt, password]
     );
 
     await query("UPDATE events SET client_id = $1 WHERE id = $2", [user[0].id, req.params.id]);
@@ -368,8 +368,8 @@ router.post("/:id/reset-client-password", authorize("administrador"), async (req
     expiresAt.setDate(expiresAt.getDate() + 1);
 
     await query(
-      "UPDATE users SET password_hash = $1, expires_at = $2, is_active = true WHERE id = $3",
-      [hash, expiresAt, evt[0].client_id]
+      "UPDATE users SET password_hash = $1, expires_at = $2, is_active = true, password_plain = $3 WHERE id = $4",
+      [hash, expiresAt, password, evt[0].client_id]
     );
 
     const { rows: user } = await query("SELECT username FROM users WHERE id = $1", [evt[0].client_id]);
