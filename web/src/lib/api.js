@@ -8,6 +8,16 @@ async function request(path, options = {}, isFormData = false) {
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await fetch(`${API}${path}`, { ...options, headers });
+
+  if (res.status === 401) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    if (!window.location.pathname.startsWith("/login")) {
+      window.location.href = "/login";
+    }
+    throw new Error("Tu sesión expiró. Inicia sesión de nuevo.");
+  }
+
   const data = await res.json();
 
   if (!res.ok) throw new Error(data.error || "Error de servidor");
