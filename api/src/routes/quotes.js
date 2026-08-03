@@ -170,11 +170,24 @@ router.post("/", authorize("administrador"), ...quoteRules, async (req, res) => 
 });
 
 // PATCH /api/quotes/:id/status
-router.patch("/:id/status", authorize("administrador"), async (req, res) => {
+router.patch("/:id/status", async (req, res) => {
   try {
     const { status } = req.body;
     const { rows: old } = await query("SELECT status, event_id, client_name FROM quotes WHERE id = $1", [req.params.id]);
     if (old.length === 0) return res.status(404).json({ error: "No encontrada" });
+
+    if (req.user.role === "cliente") {
+      if (!["aceptado", "rechazado"].includes(status)) {
+        return res.status(403).json({ error: "El cliente solo puede aceptar o rechazar la cotización" });
+      }
+      const { rows: ev } = await query(
+        "SELECT 1 FROM events WHERE id = $1 AND client_id = $2",
+        [old[0].event_id, req.user.id]
+      );
+      if (ev.length === 0) return res.status(403).json({ error: "No tienes acceso a esta cotización" });
+    } else if (req.user.role !== "administrador") {
+      return res.status(403).json({ error: "No tienes permiso" });
+    }
 
     const { rows } = await query(
       "UPDATE quotes SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
@@ -220,13 +233,22 @@ router.patch("/:id/status", authorize("administrador"), async (req, res) => {
 
     if (status !== old[0].status) {
       const statusLabels = { enviado: "Enviada", aceptado: "Aceptada", rechazado: "Rechazada", borrador: "Reabierta" };
-      await createNotification({
-        userId: req.user.id,
-        eventId: old[0].event_id,
-        title: `Cotización ${statusLabels[status] || status}`,
-        body: `Cotización de ${old[0].client_name || "cliente"} ${statusLabels[status]?.toLowerCase() || status}`,
-        type: "quote",
-      });
+      if (req.user.role === "administrador") {
+        await createNotification({
+          userId: req.user.id,
+          eventId: old[0].event_id,
+          title: `Cotización ${statusLabels[status] || status}`,
+          body: `Cotización de ${old[0].client_name || "cliente"} ${statusLabels[status]?.toLowerCase() || status}`,
+          type: "quote",
+        });
+      } else {
+        await notifyAdmins({
+          eventId: old[0].event_id,
+          title: `Cotización ${statusLabels[status] || status} por el cliente`,
+          body: `${old[0].client_name || "El cliente"} ${statusLabels[status]?.toLowerCase() || status} la cotización`,
+          type: "quote",
+        });
+      }
     }
 
     const { rows: fullItems } = await query("SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY is_supplier_cost, id", [req.params.id]);
@@ -329,7 +351,7 @@ router.post("/:id/regenerate-payments", authorize("administrador"), async (req, 
   }
 });
 
-// POST /api/quotes/:id/request-change — cliente solicita cambios
+// POST /api/quotes/:id/request-change — cliente reabre la cotización
 router.post("/:id/request-change", async (req, res) => {
   try {
     const { rows: quote } = await query(
@@ -338,14 +360,25 @@ router.post("/:id/request-change", async (req, res) => {
     );
     if (quote.length === 0) return res.status(404).json({ error: "Cotización no encontrada" });
 
+    if (req.user.role === "cliente") {
+      const { rows: ev } = await query(
+        "SELECT 1 FROM events WHERE id = $1 AND client_id = $2",
+        [quote[0].event_id, req.user.id]
+      );
+      if (ev.length === 0) return res.status(403).json({ error: "No tienes acceso a esta cotización" });
+    }
+
     const description = req.body.description || "";
     const eventId = quote[0].event_id;
     const clientName = quote[0].client_name || "Cliente";
 
+    // Reabrir: la cotización vuelve a borrador para que el organizador la edite
+    await query("UPDATE quotes SET status = 'borrador', updated_at = NOW() WHERE id = $1", [req.params.id]);
+
     await notifyAdmins({
       eventId,
-      title: `🔴 Solicitud de cambio — ${clientName}`,
-      body: description || "El cliente solicita una reunión para revisar cambios",
+      title: `🔴 Cotización reabierta — ${clientName}`,
+      body: description || "El cliente reabrió la cotización para solicitar cambios",
       type: "cambio_solicitado",
     });
 

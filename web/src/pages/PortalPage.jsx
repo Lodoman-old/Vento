@@ -279,21 +279,22 @@ export default function PortalPage() {
       {requestChange.show && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
           <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl animate-slide-up space-y-4">
-            <h2 className="text-lg font-bold text-amber-600">Solicitar cambio</h2>
-            <p className="text-sm text-slate-500">Describe los cambios que deseas en la cotización o solicita una reunión para revisarlos:</p>
+            <h2 className="text-lg font-bold text-amber-600">Reabrir cotización</h2>
+            <p className="text-sm text-slate-500">Explica qué cambios necesitas. La cotización se reabrirá y el organizador recibirá una notificación para editarla:</p>
             <textarea value={requestChange.description} onChange={(e) => setRequestChange({ ...requestChange, description: e.target.value })}
-              placeholder="Ej: Quiero cambiar la cantidad de sillas de 50 a 80, y agregar 2 mesas extra. Prefiero reunirme el viernes."
+              placeholder="Ej: Quiero cambiar la cantidad de sillas de 50 a 80, y agregar 2 mesas extra."
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-amber-500 min-h-[120px]" />
             <div className="flex gap-2 pt-2">
               <button onClick={async () => {
                 try {
                   await api.post(`/quotes/${requestChange.quote.id}/request-change`, { description: requestChange.description });
                   setRequestChange({ show: false, description: "", quote: null });
-                  alert("Solicitud enviada. El organizador recibirá una notificación.");
+                  alert("Cotización reabierta. El organizador recibirá una notificación.");
+                  window.location.reload();
                 } catch (e) { alert("Error: " + e.message); }
               }}
                 className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition">
-                Enviar solicitud
+                Reabrir cotización
               </button>
               <button onClick={() => setRequestChange({ show: false, description: "", quote: null })}
                 className="px-4 py-2 border border-slate-200 rounded-lg text-sm hover:bg-slate-50 transition">
@@ -306,63 +307,130 @@ export default function PortalPage() {
 
       {tab === "quotes" && (
         <div className="space-y-3">
-          {quotes.map((q) => (
-            <div key={q.id} className="bg-white rounded-lg border border-slate-200 text-sm overflow-hidden">
-              <div className="px-4 py-3 flex items-center justify-between border-b border-slate-100">
-                <div>
-                  <span className="font-medium">{q.client_name || "Cotización"}</span>
-                  <span className="text-slate-400 ml-2">{fmtMoney(q.total)}</span>
-                  <span className={`ml-2 text-xs px-2 py-0.5 rounded-full capitalize ${
-                    q.status === "aceptado" ? "bg-green-100 text-green-700" :
-                    q.status === "enviado" ? "bg-blue-100 text-blue-700" :
-                    "bg-slate-100 text-slate-600"
-                  }`}>{q.status}</span>
+          {quotes.map((q) => {
+            const planned = (q.payments || []).filter((p) => p.method === "enganche" || p.method === "mensualidad");
+            const real = (q.payments || []).filter((p) => p.method !== "enganche" && p.method !== "mensualidad");
+            const paidTotal = real.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+            const balance = (Number(q.total) || 0) - paidTotal;
+            const statusLabels = { enviado: "Enviada", aceptado: "Aceptada", borrador: "Reabierta", rechazado: "Rechazada" };
+            return (
+              <div key={q.id} className="bg-white rounded-lg border border-slate-200 text-sm overflow-hidden">
+                <div className="px-4 py-3 flex items-center justify-between flex-wrap gap-2 border-b border-slate-100">
+                  <div>
+                    <span className="font-medium">{q.client_name || "Cotización"}</span>
+                    <span className="text-slate-400 ml-2">{fmtMoney(q.total)}</span>
+                    <span className={`ml-2 text-xs px-2 py-0.5 rounded-full capitalize ${
+                      q.status === "aceptado" ? "bg-green-100 text-green-700" :
+                      q.status === "enviado" ? "bg-blue-100 text-blue-700" :
+                      q.status === "borrador" ? "bg-amber-100 text-amber-700" :
+                      "bg-slate-100 text-slate-600"
+                    }`}>{statusLabels[q.status] || q.status}</span>
+                  </div>
+                  {(q.status === "enviado" || q.status === "aceptado") && (
+                    <div className="flex gap-2">
+                      <button onClick={() => setRequestChange({ quote: q, show: true, description: "" })}
+                        className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-medium hover:bg-amber-600 transition">
+                        Reabrir cotización
+                      </button>
+                      {q.status === "enviado" && (
+                        <button onClick={async () => {
+                          try {
+                            await api.patch(`/quotes/${q.id}/status`, { status: "aceptado" });
+                            const res = await api.get("/events?page=1&limit=1");
+                            const events = res.data || res;
+                            if (events.length > 0) setEvent(events[0]);
+                            window.location.reload();
+                          } catch (e) { alert("Error: " + e.message); }
+                        }}
+                          className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition">
+                          Aceptar cotización
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {q.status === "borrador" && (
+                    <span className="text-xs text-amber-600">Reabierta: el organizador la está revisando</span>
+                  )}
                 </div>
-                {q.status === "enviado" && (
-                  <div className="flex gap-2">
-                    <button onClick={() => setRequestChange({ quote: q, show: true, description: "" })}
-                      className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-medium hover:bg-amber-600 transition">
-                      Solicitar cambio
-                    </button>
-                    <button onClick={async () => {
-                      try {
-                        await api.patch(`/quotes/${q.id}/status`, { status: "aceptado" });
-                        const res = await api.get("/events?page=1&limit=1");
-                        const events = res.data || res;
-                        if (events.length > 0) setEvent(events[0]);
-                        window.location.reload();
-                      } catch (e) { alert("Error: " + e.message); }
-                    }}
-                      className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition">
-                      Aceptar cotización
-                    </button>
+                {q.items && q.items.length > 0 && (
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-slate-400">
+                        <th className="text-left px-4 py-2 font-medium">Producto</th>
+                        <th className="text-right px-4 py-2 font-medium">Cant.</th>
+                        <th className="text-right px-4 py-2 font-medium">Precio</th>
+                        <th className="text-right px-4 py-2 font-medium">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {q.items.map((item) => (
+                        <tr key={item.id}>
+                          <td className="px-4 py-2 text-slate-700">{item.item_name}</td>
+                          <td className="px-4 py-2 text-right text-slate-500">{item.quantity}</td>
+                          <td className="px-4 py-2 text-right text-slate-500">{fmtMoney(item.unit_price)}</td>
+                          <td className="px-4 py-2 text-right text-slate-700 font-medium">{fmtMoney(item.subtotal)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-slate-100 bg-slate-50/60">
+                        <td className="px-4 py-2 font-semibold" colSpan="3">Total</td>
+                        <td className="px-4 py-2 text-right font-semibold text-vento-navy">{fmtMoney(q.total)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                )}
+                {planned.length > 0 && (
+                  <div className="px-4 py-3 border-t border-slate-100">
+                    <span className="text-xs font-medium text-slate-500 mb-2 block">Plan de pagos</span>
+                    <div className="space-y-1">
+                      {planned.map((p) => {
+                        const paid = Number(p.paid_amount || 0);
+                        const rest = Number(p.amount) - paid;
+                        return (
+                          <div key={p.id} className="flex items-center justify-between bg-slate-50 rounded px-3 py-1.5 text-xs">
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <span className="font-semibold text-vento-navy">{fmtMoney(p.amount)}</span>
+                              <span className="text-slate-500">{p.notes || p.method}</span>
+                              <span className="text-slate-400">{new Date(p.payment_date).toLocaleDateString("es-MX")}</span>
+                              {paid > 0 && <span className="text-green-600 font-medium">Pagado: {fmtMoney(paid)}</span>}
+                            </div>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${rest <= 0 ? "bg-green-100 text-green-700" : "bg-slate-200 text-slate-500"}`}>
+                              {rest <= 0 ? "Pagado" : "Pendiente"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {real.length > 0 && (
+                  <div className="px-4 py-3 border-t border-slate-100">
+                    <span className="text-xs font-medium text-slate-500 mb-2 block">Registro de pagos</span>
+                    <div className="space-y-1">
+                      {real.map((p) => (
+                        <div key={p.id} className="flex items-center justify-between bg-slate-50 rounded px-3 py-1.5 text-xs">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className="font-semibold text-green-600">{fmtMoney(p.amount)}</span>
+                            <span className="text-slate-500 capitalize">{p.method}</span>
+                            {p.reference && <span className="text-slate-400">{p.reference}</span>}
+                            {p.notes && <span className="text-slate-400">{p.notes}</span>}
+                            <span className="text-slate-400">{new Date(p.payment_date).toLocaleDateString("es-MX")}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {(planned.length > 0 || real.length > 0) && (
+                  <div className="px-4 py-2 border-t border-slate-100 bg-slate-50/60 flex gap-6 text-xs font-medium">
+                    <span className="text-slate-500">Pagado: <span className="text-green-600">{fmtMoney(paidTotal)}</span></span>
+                    <span className="text-slate-500">Saldo: <span className={balance > 0 ? "text-amber-600" : "text-green-600"}>{fmtMoney(balance)}</span></span>
                   </div>
                 )}
               </div>
-              {q.items && q.items.length > 0 && (
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-slate-400">
-                      <th className="text-left px-4 py-2 font-medium">Producto</th>
-                      <th className="text-right px-4 py-2 font-medium">Cant.</th>
-                      <th className="text-right px-4 py-2 font-medium">Precio</th>
-                      <th className="text-right px-4 py-2 font-medium">Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {q.items.map((item) => (
-                      <tr key={item.id}>
-                        <td className="px-4 py-2 text-slate-700">{item.item_name}</td>
-                        <td className="px-4 py-2 text-right text-slate-500">{item.quantity}</td>
-                        <td className="px-4 py-2 text-right text-slate-500">{fmtMoney(item.unit_price)}</td>
-                        <td className="px-4 py-2 text-right text-slate-700 font-medium">{fmtMoney(item.subtotal)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          ))}
+            );
+          })}
           {quotes.length === 0 && <p className="text-sm text-slate-400 text-center py-4">Sin cotizaciones</p>}
         </div>
       )}
