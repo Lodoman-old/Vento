@@ -39,7 +39,7 @@ export function authorize(...roles) {
 
 export async function checkEventAccess(req, res, next) {
   if (req.user.role === "administrador") return next();
-  const eventId = req.params.id || req.query.eventId || req.body.eventId;
+  const eventId = req.params.id || req.query.event_id || req.query.eventId || req.body.event_id || req.body.eventId;
   if (!eventId) return res.status(400).json({ error: "eventId requerido" });
   let ok;
   if (req.user.role === "cliente") {
