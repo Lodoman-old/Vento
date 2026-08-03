@@ -379,7 +379,7 @@ export default function QuotesPage() {
     }
   }
 
-  async function shareWhatsApp(quote, win) {
+  async function shareWhatsApp(quote, win, reuseCredentials = false) {
     const openWa = (message) => {
       const url = `https://wa.me/${quote.client_phone}?text=${encodeURIComponent(message)}`;
       if (win) win.location.href = url;
@@ -390,13 +390,15 @@ export default function QuotesPage() {
       const fm = (n) => `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       const origin = window.location.origin;
 
-      // Fetch/create client access credentials
+      // Obtener acceso cliente. Solo se regenera en el primer envío; al reenviar se usan las credenciales activas
       let portalMsg = `\n\nPortal: ${origin}/portal`;
       try {
         const existing = await api.get(`/events/${full.event_id}/client-access`);
-        if (existing?.username) {
+        if (existing?.username && !reuseCredentials) {
           const regenerated = await api.post(`/events/${full.event_id}/client-access`);
           portalMsg = `\n\nAccede a tu portal:\n${origin}/portal\nUsuario: ${regenerated.username}\nContrase\u00f1a: ${regenerated.password}`;
+        } else if (existing?.username) {
+          portalMsg = `\n\nAccede a tu portal:\n${origin}/portal\nUsuario: ${existing.username}`;
         } else {
           const created = await api.post(`/events/${full.event_id}/client-access`);
           if (created?.username) {
@@ -625,7 +627,7 @@ export default function QuotesPage() {
                   </button>
                 )}
                 {user?.role === "administrador" && (q.status === "aceptado" || q.status === "rechazado") && q.client_phone && (
-                  <button onClick={() => { const win = window.open("", "_blank"); shareWhatsApp(q, win); }}
+                  <button onClick={() => { const win = window.open("", "_blank"); shareWhatsApp(q, win, true); }}
                     className="text-[10px] px-2 py-1 bg-green-500 text-white rounded-full hover:bg-green-600 transition">
                     Reenviar
                   </button>
