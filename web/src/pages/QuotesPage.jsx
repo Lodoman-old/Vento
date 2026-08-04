@@ -386,34 +386,39 @@ export default function QuotesPage() {
   }
 
   async function shareWhatsApp(quote) {
+    // El modal aparece de inmediato para que el usuario sepa que está trabajando
+    setShareStep("generating");
+
     const fm = (n) => `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const openWa = (message) => {
       const url = `https://wa.me/${quote.client_phone}?text=${encodeURIComponent(message)}`;
       window.open(url, "_blank");
     };
+    const withTimeout = (p, ms) =>
+      Promise.race([p, new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))]);
 
     // Mensaje con las credenciales activas del portal; solo se regeneran si no hay acceso o falta la contraseña visible
     let message = `Hola! Te comparto la cotizaci\u00f3n de Vento para "${quote.client_name || "tu evento"}".\n\nTotal: ${fm(quote.total)}`;
     try {
-      const full = await api.get(`/quotes/${quote.id}`);
+      const full = await withTimeout(api.get(`/quotes/${quote.id}`), 8000);
       const origin = window.location.origin;
       let portalMsg = `\n\nPortal: ${origin}/portal`;
       try {
-        const existing = await api.get(`/events/${full.event_id}/client-access`);
+        const existing = await withTimeout(api.get(`/events/${full.event_id}/client-access`), 8000);
         if (existing?.username && existing?.password_plain) {
           portalMsg = `\n\nAccede a tu portal:\n${origin}/portal\nUsuario: ${existing.username}\nContrase\u00f1a: ${existing.password_plain}`;
         } else if (existing?.username) {
-          const regenerated = await api.post(`/events/${full.event_id}/client-access`);
+          const regenerated = await withTimeout(api.post(`/events/${full.event_id}/client-access`), 8000);
           portalMsg = `\n\nAccede a tu portal:\n${origin}/portal\nUsuario: ${regenerated.username}\nContrase\u00f1a: ${regenerated.password}`;
         } else {
-          const created = await api.post(`/events/${full.event_id}/client-access`);
+          const created = await withTimeout(api.post(`/events/${full.event_id}/client-access`), 8000);
           if (created?.username) {
             portalMsg = `\n\nAccede a tu portal:\n${origin}/portal\nUsuario: ${created.username}\nContrase\u00f1a: ${created.password}`;
           }
         }
       } catch {
         try {
-          const created = await api.post(`/events/${full.event_id}/client-access`);
+          const created = await withTimeout(api.post(`/events/${full.event_id}/client-access`), 8000);
           if (created?.username) {
             portalMsg = `\n\nAccede a tu portal:\n${origin}/portal\nUsuario: ${created.username}\nContrase\u00f1a: ${created.password}`;
           }
@@ -422,15 +427,11 @@ export default function QuotesPage() {
       message = `Hola! Te comparto la cotizaci\u00f3n de Vento para "${full.client_name || "tu evento"}".\n\nTotal: ${fm(full.total)}${portalMsg}`;
     } catch {}
 
-    // Construye el PDF (con modal); WhatsApp se abre solo al confirmar con el botón Aceptar
-    setShareStep("generating");
+    // Construye el PDF; si algo se cuelga, el timeout fuerza el avance al modal con botón Aceptar
     let file = null;
     try {
-      const { docDefinition } = await buildQuoteDoc(quote);
-      const blob = await Promise.race([
-        pdfMake.createPdf(docDefinition).getBlob(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 20000)),
-      ]);
+      const { docDefinition } = await withTimeout(buildQuoteDoc(quote), 20000);
+      const blob = await withTimeout(pdfMake.createPdf(docDefinition).getBlob(), 20000);
       file = new File([blob], `Cotizacion_${quote.client_name || "sin_cliente"}.pdf`, { type: "application/pdf" });
     } catch (err) {
       console.error("PDF share error:", err);
