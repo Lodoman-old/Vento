@@ -447,7 +447,7 @@ router.post("/:id/finalize-inventory", async (req, res) => {
     if (quotes.length === 0) return res.json([]);
 
     const { rows: items } = await query(
-      "SELECT id AS quote_item_id, item_name, quantity, no_return_cost FROM quote_items WHERE quote_id = $1 AND is_supplier_cost = false",
+      "SELECT id AS quote_item_id, item_name, quantity, needs_return, no_return_cost FROM quote_items WHERE quote_id = $1 AND is_supplier_cost = false",
       [quotes[0].id]
     );
 
@@ -462,6 +462,7 @@ router.post("/:id/finalize-inventory", async (req, res) => {
         .reduce((s, m) => s + Number(m.quantity), 0);
 
     const faltantes = items
+      .filter((i) => i.needs_return)
       .map((i) => {
         const taken = getMovements(i.item_name, 'llevado');
         const returned = getMovements(i.item_name, 'regresado');
