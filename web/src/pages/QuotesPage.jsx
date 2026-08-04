@@ -385,12 +385,11 @@ export default function QuotesPage() {
     }
   }
 
-  async function shareWhatsApp(quote, win) {
+  async function shareWhatsApp(quote) {
     const fm = (n) => `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const openWa = (message) => {
       const url = `https://wa.me/${quote.client_phone}?text=${encodeURIComponent(message)}`;
-      if (win) win.location.href = url;
-      else window.open(url, "_blank");
+      window.open(url, "_blank");
     };
 
     // Mensaje con las credenciales activas del portal; solo se regeneran si no hay acceso o falta la contraseña visible
@@ -627,9 +626,8 @@ export default function QuotesPage() {
                 {user?.role === "administrador" && (q.status === "borrador" || q.status === "enviado") && (
                   <>
                     <button onClick={() => {
-                      const win = q.client_phone ? window.open("", "_blank") : null;
                       updateStatus(q.id, "enviado");
-                      if (q.client_phone) shareWhatsApp(q, win);
+                      if (q.client_phone) shareWhatsApp(q);
                     }}
                       className="text-[10px] px-2 py-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition">
                       Enviar{q.client_phone ? " + WhatsApp" : ""}
@@ -657,7 +655,7 @@ export default function QuotesPage() {
                   </button>
                 )}
                 {user?.role === "administrador" && (q.status === "aceptado" || q.status === "rechazado") && q.client_phone && (
-                  <button onClick={() => { const win = window.open("", "_blank"); shareWhatsApp(q, win); }}
+                  <button onClick={() => shareWhatsApp(q)}
                     className="text-[10px] px-2 py-1 bg-green-500 text-white rounded-full hover:bg-green-600 transition">
                     Reenviar
                   </button>
