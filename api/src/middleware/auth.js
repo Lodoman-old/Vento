@@ -50,7 +50,10 @@ export async function checkEventAccess(req, res, next) {
     ok = rows.length > 0;
   } else {
     const { rows } = await query(
-      "SELECT 1 FROM event_staff WHERE event_id = $1 AND user_id = $2",
+      `SELECT 1 FROM events e
+       LEFT JOIN event_staff es ON es.event_id = e.id
+       LEFT JOIN agenda_items a ON a.event_id = e.id AND a.assigned_to = $2
+       WHERE e.id = $1 AND (es.user_id = $2 OR a.assigned_to = $2)`,
       [eventId, req.user.id]
     );
     ok = rows.length > 0;

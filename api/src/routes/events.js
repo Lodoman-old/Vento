@@ -74,13 +74,15 @@ router.get("/", async (req, res) => {
       params = [req.user.id, limit, offset];
       countParams = [req.user.id];
     } else {
-      baseSql = `SELECT e.* FROM events e
-                 JOIN event_staff es ON es.event_id = e.id
-                 WHERE es.user_id = $1
+      baseSql = `SELECT DISTINCT e.* FROM events e
+                 LEFT JOIN event_staff es ON es.event_id = e.id
+                 LEFT JOIN agenda_items a ON a.event_id = e.id AND a.assigned_to = $1
+                 WHERE es.user_id = $1 OR a.assigned_to = $1
                  ORDER BY e.date DESC LIMIT $2 OFFSET $3`;
-      countSql = `SELECT COUNT(*)::int AS total FROM events e
-                  JOIN event_staff es ON es.event_id = e.id
-                  WHERE es.user_id = $1`;
+      countSql = `SELECT COUNT(DISTINCT e.id)::int AS total FROM events e
+                  LEFT JOIN event_staff es ON es.event_id = e.id
+                  LEFT JOIN agenda_items a ON a.event_id = e.id AND a.assigned_to = $1
+                  WHERE es.user_id = $1 OR a.assigned_to = $1`;
       params = [req.user.id, limit, offset];
       countParams = [req.user.id];
     }
@@ -118,9 +120,10 @@ router.get("/calendar", async (req, res) => {
              ORDER BY date`;
       params = [start, end];
     } else {
-      sql = `SELECT e.id, e.name, e.date, e.status, e.venue, TO_CHAR(e.date, 'YYYY-MM-DD') AS day FROM events e
-             JOIN event_staff es ON es.event_id = e.id
-             WHERE es.user_id = $1 AND e.date::date >= $2 AND e.date::date <= $3
+      sql = `SELECT DISTINCT e.id, e.name, e.date, e.status, e.venue, TO_CHAR(e.date, 'YYYY-MM-DD') AS day FROM events e
+             LEFT JOIN event_staff es ON es.event_id = e.id
+             LEFT JOIN agenda_items a ON a.event_id = e.id AND a.assigned_to = $1
+             WHERE (es.user_id = $1 OR a.assigned_to = $1) AND e.date::date >= $2 AND e.date::date <= $3
              ORDER BY e.date`;
       params = [req.user.id, start, end];
     }
