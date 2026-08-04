@@ -386,6 +386,10 @@ export default function QuotesPage() {
   }
 
   async function shareWhatsApp(quote) {
+    if (!quote.client_phone) {
+      setShareStep("nophone");
+      return;
+    }
     // El modal aparece de inmediato para que el usuario sepa que está trabajando
     setShareStep("generating");
 
@@ -628,7 +632,7 @@ export default function QuotesPage() {
                   <>
                     <button onClick={() => {
                       updateStatus(q.id, "enviado");
-                      if (q.client_phone) shareWhatsApp(q);
+                      shareWhatsApp(q);
                     }}
                       className="text-[10px] px-2 py-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition">
                       Enviar{q.client_phone ? " + WhatsApp" : ""}
@@ -1087,23 +1091,38 @@ function QuoteDetail({ quoteId }) {
       {shareStep && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl flex flex-col items-center gap-3 animate-slide-up">
+            {shareStep === "nophone" && (
+              <>
+                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-xl">⚠</div>
+                <p className="text-slate-700 font-medium">Sin teléfono de WhatsApp</p>
+                <p className="text-xs text-slate-500 text-center leading-relaxed">
+                  Esta cotización no tiene teléfono del cliente.<br />
+                  Edítala y agrega el teléfono para poder enviarla por WhatsApp.
+                </p>
+                <button onClick={() => setShareStep(null)}
+                  className="w-full px-4 py-2 bg-vento-navy text-amber-400 rounded-lg text-sm font-medium hover:bg-slate-800 transition">
+                  Entendido
+                </button>
+              </>
+            )}
+
             {shareStep === "generating" && (
               <>
                 <div className="w-10 h-10 border-4 border-slate-200 border-t-amber-500 rounded-full animate-spin" />
                 <p className="text-slate-700 font-medium">Generando PDF...</p>
                 <p className="text-xs text-slate-500 text-center leading-relaxed">
-                  Se descargar\u00e1 el PDF y luego se abrir\u00e1 WhatsApp con el mensaje listo.
+                  Se descargará el PDF y luego se abrirá WhatsApp con el mensaje listo.
                 </p>
               </>
             )}
 
             {shareStep === "ready" && (
               <>
-                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-xl">\u2713</div>
+                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-xl">✓</div>
                 <p className="text-slate-700 font-medium">PDF generado</p>
                 <p className="text-xs text-slate-500 text-center leading-relaxed">
-                  Al presionar \u201cAceptar\u201d se abrir\u00e1 WhatsApp con el mensaje listo.<br />
-                  En computadora: arrastra el PDF descargado a la conversaci\u00f3n para adjuntarlo.
+                  Al presionar "Aceptar" se abrirá WhatsApp con el mensaje listo.<br />
+                  En computadora: arrastra el PDF descargado a la conversación para adjuntarlo.
                 </p>
                 <button onClick={confirmShare}
                   className="w-full px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition">
@@ -1117,10 +1136,10 @@ function QuoteDetail({ quoteId }) {
 
             {shareStep === "error" && (
               <>
-                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-xl">\u26A0</div>
+                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-xl">⚠</div>
                 <p className="text-slate-700 font-medium">No se pudo generar el PDF</p>
                 <p className="text-xs text-slate-500 text-center leading-relaxed">
-                  Se abrir\u00e1 WhatsApp de todos modos con el mensaje y las credenciales del portal.
+                  Se abrirá WhatsApp de todos modos con el mensaje y las credenciales del portal.
                 </p>
                 <button onClick={confirmShare}
                   className="w-full px-4 py-2 bg-vento-navy text-amber-400 rounded-lg text-sm font-medium hover:bg-slate-800 transition">
