@@ -27,6 +27,7 @@ export default function QuotesPage() {
   const [shareStep, setShareStep] = useState(null);
   const shareFileRef = useRef(null);
   const shareMessageRef = useRef(null);
+  const sharePhoneRef = useRef(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   useEffect(() => {
@@ -168,11 +169,16 @@ export default function QuotesPage() {
 
       let event = null;
       let agenda = [];
+      let realPayments = [];
       try {
         [event, agenda] = await Promise.all([
           api.get(`/events/${full.event_id}`),
           api.get(`/agenda?event_id=${full.event_id}`),
         ]);
+      } catch {}
+      try {
+        realPayments = (await api.get(`/payments?quote_id=${full.id}`))
+          .filter((p) => p.method !== "enganche" && p.method !== "mensualidad");
       } catch {}
 
       let logoImage = null;
@@ -229,6 +235,8 @@ export default function QuotesPage() {
       }
 
       const fm = (n) => `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+      const planPayments = (full.payments || []).filter((p) => p.method === "enganche" || p.method === "mensualidad");
 
       const body = [
         [
@@ -331,8 +339,8 @@ export default function QuotesPage() {
               fillColor: (i) => i === 0 ? "#0F172A" : (i % 2 === 0 ? "#F8FAFC" : null),
             },
           } : null,
-          full.payments?.length > 0 ? { text: "PLAN DE PAGOS", fontSize: 12, bold: true, color: "#0F172A", margin: [0, 20, 0, 8] } : null,
-          full.payments?.length > 0 ? {
+          planPayments.length > 0 ? { text: "PLAN DE PAGOS", fontSize: 12, bold: true, color: "#0F172A", margin: [0, 20, 0, 8] } : null,
+          planPayments.length > 0 ? {
             table: {
               headerRows: 1,
               widths: [85, 90, "*"],
@@ -342,10 +350,41 @@ export default function QuotesPage() {
                   { text: "Monto", style: "tableHeader", alignment: "right" },
                   { text: "Concepto", style: "tableHeader" },
                 ],
-                ...full.payments.map((p) => [
+                ...planPayments.map((p) => [
                   { text: p.payment_date ? new Date(p.payment_date).toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" }) : "—", fontSize: 8 },
                   { text: fm(p.amount), alignment: "right", fontSize: 8 },
                   { text: p.notes || p.method || "—", fontSize: 8 },
+                ]),
+              ],
+            },
+            layout: {
+              hLineWidth: () => 0.5,
+              vLineWidth: () => 0,
+              hLineColor: () => "#E2E8F0",
+              paddingLeft: () => 6,
+              paddingRight: () => 6,
+              paddingTop: () => 4,
+              paddingBottom: () => 4,
+              fillColor: (i) => i === 0 ? "#0F172A" : (i % 2 === 0 ? "#F8FAFC" : null),
+            },
+          } : null,
+          realPayments.length > 0 ? { text: "PAGOS REALIZADOS", fontSize: 12, bold: true, color: "#0F172A", margin: [0, 20, 0, 8] } : null,
+          realPayments.length > 0 ? {
+            table: {
+              headerRows: 1,
+              widths: [85, 90, 80, "*"],
+              body: [
+                [
+                  { text: "Fecha", style: "tableHeader" },
+                  { text: "Monto", style: "tableHeader", alignment: "right" },
+                  { text: "Método", style: "tableHeader" },
+                  { text: "Referencia / Notas", style: "tableHeader" },
+                ],
+                ...realPayments.map((p) => [
+                  { text: p.payment_date ? new Date(p.payment_date).toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" }) : "—", fontSize: 8 },
+                  { text: fm(p.amount), alignment: "right", fontSize: 8 },
+                  { text: ({ efectivo: "Efectivo", transferencia: "Transferencia", tarjeta: "Tarjeta", deposito: "Depósito" })[p.method] || p.method || "—", fontSize: 8 },
+                  { text: [p.reference, p.notes].filter(Boolean).join(" — ") || "—", fontSize: 8 },
                 ]),
               ],
             },
@@ -385,21 +424,21 @@ export default function QuotesPage() {
     }
   }
 
+  const openWa = (message) => {
+    const url = `https://wa.me/${sharePhoneRef.current}?text=${encodeURIComponent(message)}`;
+    window.open(url, "_blank");
+  };
+
   async function shareWhatsApp(quote) {
-    if (!quote.client_phone) {
-      setShareStep("nophone");
-      return;
-    }
     // El modal aparece de inmediato para que el usuario sepa que está trabajando
     setShareStep("generating");
 
     const fm = (n) => `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    const openWa = (message) => {
-      const url = `https://wa.me/${quote.client_phone}?text=${encodeURIComponent(message)}`;
-      window.open(url, "_blank");
-    };
     const withTimeout = (p, ms) =>
       Promise.race([p, new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))]);
+
+    // Teléfono: prioriza el del cliente del evento (perfil de usuario); si no, el de la cotización
+    let phone = quote.client_phone;
 
     // Mensaje con las credenciales activas del portal; solo se regeneran si no hay acceso o falta la contraseña visible
     let message = `Hola! Te comparto la cotizaci\u00f3n de Vento para "${quote.client_name || "tu evento"}".\n\nTotal: ${fm(quote.total)}`;
@@ -409,6 +448,7 @@ export default function QuotesPage() {
       let portalMsg = `\n\nPortal: ${origin}/portal`;
       try {
         const existing = await withTimeout(api.get(`/events/${full.event_id}/client-access`), 8000);
+        if (existing?.phone) phone = existing.phone;
         if (existing?.username && existing?.password_plain) {
           portalMsg = `\n\nAccede a tu portal:\n${origin}/portal\nUsuario: ${existing.username}\nContrase\u00f1a: ${existing.password_plain}`;
         } else if (existing?.username) {
@@ -430,6 +470,13 @@ export default function QuotesPage() {
       }
       message = `Hola! Te comparto la cotizaci\u00f3n de Vento para "${full.client_name || "tu evento"}".\n\nTotal: ${fm(full.total)}${portalMsg}`;
     } catch {}
+
+    if (!phone) {
+      setShareStep("nophone");
+      return;
+    }
+
+    sharePhoneRef.current = phone;
 
     // Construye el PDF; si algo se cuelga, el timeout fuerza el avance al modal con botón Aceptar
     let file = null;

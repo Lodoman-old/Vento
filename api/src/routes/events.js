@@ -296,7 +296,7 @@ router.delete("/:id/staff/:userId", authorize("administrador"), async (req, res)
 router.get("/:id/client-access", authorize("administrador"), async (req, res) => {
   try {
     const { rows } = await query(
-      `SELECT u.id, u.display_name, u.username, u.role, u.is_active, u.expires_at, u.password_plain
+      `SELECT u.id, u.display_name, u.username, u.role, u.is_active, u.expires_at, u.password_plain, u.phone
        FROM users u JOIN events e ON e.client_id = u.id
        WHERE e.id = $1 AND u.role = 'cliente'`,
       [req.params.id]
