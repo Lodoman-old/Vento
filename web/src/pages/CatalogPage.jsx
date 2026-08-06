@@ -7,6 +7,28 @@ function imgSrc(url) {
   return url?.startsWith("http") ? url : url || "/placeholder.svg";
 }
 
+function compressImage(file, maxWidth = 800, quality = 0.8) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob((blob) => {
+        if (blob) resolve(new File([blob], "producto.jpg", { type: "image/jpeg" }));
+        else resolve(file);
+      }, "image/jpeg", quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 const emptyForm = { name: "", category: "", unit_price: "", unit_type: "pieza", description: "", stock_available: "", image_url: "", needs_return: false, no_return_cost: "" };
 const unitTypes = ["pieza", "persona", "metro", "juego", "kg", "litro"];
 
@@ -69,8 +91,9 @@ export default function CatalogPage() {
   async function handleUpload(file) {
     setUploading(true);
     try {
+      const compressed = await compressImage(file);
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", compressed);
       const { url } = await api.post("/upload", fd, true);
       setForm({ ...form, image_url: url });
     } catch (err) {
