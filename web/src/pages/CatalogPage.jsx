@@ -75,6 +75,7 @@ export default function CatalogPage() {
       setForm({ ...form, image_url: url });
     } catch (err) {
       console.error("Upload error:", err);
+      toast(err.message, "error");
     } finally {
       setUploading(false);
     }

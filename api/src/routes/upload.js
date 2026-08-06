@@ -11,11 +11,21 @@ cloudinary.v2.config({
 });
 
 const storage = multer.memoryStorage();
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 
 const router = Router();
 
-router.post("/", authenticate, authorize("administrador"), upload.single("file"), async (req, res) => {
+router.post("/", authenticate, authorize("administrador"), (req, res, next) => {
+  upload.single("file")(req, res, (err) => {
+    if (err) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ error: "La foto es demasiado grande (máximo 20 MB)" });
+      }
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "Selecciona un archivo" });
 
