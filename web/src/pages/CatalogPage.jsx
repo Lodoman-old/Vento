@@ -24,6 +24,7 @@ export default function CatalogPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [previewImg, setPreviewImg] = useState(null);
   const fileRef = useRef(null);
+  const cameraRef = useRef(null);
 
   async function load() {
     const qs = showInactive ? "?showAll=true" : "";
@@ -228,9 +229,22 @@ export default function CatalogPage() {
                     {uploading ? "..." : "Sin foto"}
                   </div>
                 )}
-                <div>
-                  <input type="file" ref={fileRef} accept="image/*" onChange={(e) => e.target.files[0] && handleUpload(e.target.files[0])} className="text-sm" />
-                  {uploading && <p className="text-xs text-vento-cyan mt-1">Subiendo...</p>}
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => cameraRef.current?.click()}
+                      className="px-3 py-2 bg-vento-cyan text-vento-navy rounded-lg text-xs font-medium hover:bg-cyan-400 transition">
+                      Tomar foto
+                    </button>
+                    <button type="button" onClick={() => fileRef.current?.click()}
+                      className="px-3 py-2 border border-slate-200 rounded-lg text-xs hover:bg-slate-50 transition">
+                      Subir foto
+                    </button>
+                  </div>
+                  <input type="file" ref={fileRef} accept="image/*" className="hidden"
+                    onChange={(e) => { if (e.target.files[0]) handleUpload(e.target.files[0]); e.target.value = ""; }} />
+                  <input type="file" ref={cameraRef} accept="image/*" capture="environment" className="hidden"
+                    onChange={(e) => { if (e.target.files[0]) handleUpload(e.target.files[0]); e.target.value = ""; }} />
+                  {uploading && <p className="text-xs text-vento-cyan">Subiendo...</p>}
                 </div>
               </div>
             </div>
